@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.enterag.utils;
 
 import java.sql.Date;
@@ -34,11 +35,11 @@ public class DU
     
     try {
       SimpleDateFormat sdfInternal = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS z");
-      Date dateMinimum = (Date) sdfInternal.parse("0001-01-01 00:00:00.000 UTC");
-      Date dateMaximum = (Date) sdfInternal.parse("9999-12-31 00:00:00.000 UTC");
+      java.util.Date dateMinimum = sdfInternal.parse("0001-01-01 00:00:00.000 UTC");
+      java.util.Date dateMaximum = sdfInternal.parse("9999-12-31 00:00:00.000 UTC");
       dateMINIMUM_SQL = new Date(dateMinimum.getTime());
       dateMAXIMUM_SQL = new Date(dateMaximum.getTime());
-      dateMaximum = (Date) sdfInternal.parse("9999-12-31 23:59:59.999 UTC");
+      dateMaximum = sdfInternal.parse("9999-12-31 23:59:59.999 UTC");
       tsMINIMUM_SQL = new Timestamp(dateMinimum.getTime());
       tsMAXIMUM_SQL = new Timestamp(dateMaximum.getTime());
       tsMAXIMUM_SQL.setNanos(999999999);
@@ -364,7 +365,7 @@ public class DU
   
   public Date fromXsDate(String s) throws ParseException {
     Date d = null;
-    Date date = (Date) _sdfXS_DATE.parse(s);
+    java.util.Date date = _sdfXS_DATE.parse(s);
     d = new Date(date.getTime());
     if (d.after(dateMAXIMUM_SQL)) {
       
@@ -484,7 +485,7 @@ public class DU
       sDecimals = String.format("%1$-9s", new Object[] { sDecimals }).replace(" ", "0");
       iNanos = Integer.parseInt(sDecimals);
     } 
-    Date date = (Date) _sdfXS_DATE_TIME.parse(s);
+    java.util.Date date = _sdfXS_DATE_TIME.parse(s);
     ts = new Timestamp(date.getTime());
     ts.setNanos(iNanos);
     if (ts.after(tsMAXIMUM_SQL)) {
@@ -526,9 +527,3 @@ public class DU
      return duration;
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siard-lib\lib\enterutils.jar!\ch\entera\\utils\DU.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 /*======================================================================
 CubridConnection implements a wrapped Cubrid Connection.
 Version     : $Id: $
@@ -95,6 +96,12 @@ public class CUBRIDConnection extends BaseConnection implements Connection {
         CubridAlterTableStatement cubrid_ats = null;
         AlterTableStatement ats = null;
 
+        if (sql != null && !sql.chars().allMatch(c -> c < 128)) {
+            _il.enter(sql);
+            _il.exit(sql);
+            return sql;
+        }
+
         _il.enter(sql);
         SqlFactory sf = new CubridSqlFactory();
         SqlStatement ss = sf.newSqlStatement();
@@ -129,6 +136,16 @@ public class CUBRIDConnection extends BaseConnection implements Connection {
         resetTableWithoutPrimaryKey();
         QuerySpecification qs = ss.getQuerySpecification();
 
+        boolean bStripSchema = true;
+        try {
+            java.sql.DatabaseMetaData dmdVer = getMetaData();
+            int iMajor = dmdVer.getDatabaseMajorVersion();
+            int iMinor = dmdVer.getDatabaseMinorVersion();
+            bStripSchema = (iMajor < 11) || (iMajor == 11 && iMinor < 2);
+        } catch (Exception e) {
+            _il.exception(e);
+        }
+
         if (qs != null) {
             int tables = qs.getTableReferences().size();
             TableReference tbl_rf;
@@ -137,14 +154,14 @@ public class CUBRIDConnection extends BaseConnection implements Connection {
             for (int i = 0; i < tables; i++) {
                 tbl_rf = qs.getTableReferences().get(i);
                 tbl_pr = tbl_rf.getTablePrimary();
-                tbl_pr.getTableName().setSchema(null);
+                if (bStripSchema) tbl_pr.getTableName().setSchema(null);
             }
 
             if (qs.getTableReferences().size() == 1) {
                 TableReference tr = qs.getTableReferences().get(0);
                 if (tr != null) {
                     TablePrimary tp = tr.getTablePrimary();
-                    tp.getTableName().setSchema(null);
+                    if (bStripSchema) tp.getTableName().setSchema(null);
 
                     if ((!tp.isOnly()) &&
                             (!tp.isTable()) &&

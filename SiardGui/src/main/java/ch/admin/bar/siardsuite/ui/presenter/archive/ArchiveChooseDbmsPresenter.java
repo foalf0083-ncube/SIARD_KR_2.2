@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive;
 
 import ch.admin.bar.siardsuite.ui.common.Workflow;
@@ -31,6 +32,14 @@ public class ArchiveChooseDbmsPresenter {
     private static final I18nKey TEXT = I18nKey.of("archiveDb.view.text");
     private static final I18nKey ERROR = I18nKey.of("archiveDb.view.error");
 
+    // 재현 흐름이 이 화면을 그대로 쓴다. 문구까지 공유하면 재현 중에
+    // 「데이터베이스를 추출하려고 합니다」가 나온다. 문맥별로 갈라 쓴다.
+    private static final I18nKey UPLOAD_TITLE = I18nKey.of("uploadDb.view.title");
+    private static final I18nKey UPLOAD_TEXT = I18nKey.of("uploadDb.view.text");
+
+    private I18nKey titleKey = TITLE;
+    private I18nKey textKey = TEXT;
+
     @FXML
     public Text title;
     @FXML
@@ -56,8 +65,8 @@ public class ArchiveChooseDbmsPresenter {
             final Dialogs dialogs,
             final DbmsRegistry dbmsRegistry
     ) {
-        title.textProperty().bind(DisplayableText.of(TITLE).bindable());
-        text.textProperty().bind(DisplayableText.of(TEXT).bindable());
+        title.textProperty().bind(DisplayableText.of(this.titleKey).bindable());
+        text.textProperty().bind(DisplayableText.of(this.textKey).bindable());
         errorMessage.textProperty().bind(DisplayableText.of(ERROR).bindable());
 
         this.errorMessage.setVisible(false);
@@ -94,6 +103,25 @@ public class ArchiveChooseDbmsPresenter {
         radioButton.setToggleGroup(toggleGroup);
         vBox.getChildren().add(radioButton);
         VBox.setMargin(radioButton, new Insets(0, 0, 25, 0));
+    }
+
+    /** 재현 흐름용 — 화면은 같고 문구만 다르다. */
+    public static LoadedView<ArchiveChooseDbmsPresenter> loadForUpload(
+            final StepperNavigator<DbmsWithInitialValue> navigator,
+            final ServicesFacade servicesFacade
+    ) {
+        val loaded = load(navigator, servicesFacade);
+        loaded.getController().useUploadTexts();
+        return loaded;
+    }
+
+    private void useUploadTexts() {
+        this.titleKey = UPLOAD_TITLE;
+        this.textKey = UPLOAD_TEXT;
+        title.textProperty().unbind();
+        text.textProperty().unbind();
+        title.textProperty().bind(DisplayableText.of(UPLOAD_TITLE).bindable());
+        text.textProperty().bind(DisplayableText.of(UPLOAD_TEXT).bindable());
     }
 
     public static LoadedView<ArchiveChooseDbmsPresenter> load(

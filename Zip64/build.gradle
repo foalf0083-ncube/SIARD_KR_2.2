@@ -1,0 +1,32 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
+plugins { id 'java' }
+
+group = 'ch.admin.bar'
+version = '1.0-SNAPSHOT'
+
+repositories { mavenCentral() }
+
+dependencies {
+    implementation project(':EnterUtils')
+    // Unchanged helper classes are merged into our jar below. Do not ship the
+    // old zip64.jar transitively as well: it can shadow the revised writer.
+    compileOnly files("$rootDir/lib/zip64.jar")
+    testImplementation files("$rootDir/lib/zip64.jar")
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test { useJUnitPlatform() }
+
+// Retain the bundled library's unchanged helper classes and public API.
+// Original Enter AG notices are retained in the source files.
+jar {
+    archiveFileName = 'zip64.jar'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(zipTree("$rootDir/lib/zip64.jar")) {
+        exclude 'ch/enterag/utils/zip/Zip64File.class', 'ch/enterag/utils/zip/EntryInputStream.class',
+                'ch/enterag/utils/zip/AppendBufferedDiskFile.class', 'ch/enterag/utils/zip/CentralDirectorySpool.class',
+                'META-INF/MANIFEST.MF'
+        exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA'
+    }
+}

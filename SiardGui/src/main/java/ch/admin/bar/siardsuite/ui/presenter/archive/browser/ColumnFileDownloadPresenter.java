@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive.browser;
 
 import ch.admin.bar.siardsuite.framework.dialogs.Dialogs;
@@ -7,6 +8,7 @@ import ch.admin.bar.siardsuite.framework.i18n.keys.I18nKey;
 import ch.admin.bar.siardsuite.framework.view.FXMLLoadHelper;
 import ch.admin.bar.siardsuite.framework.view.LoadedView;
 import ch.admin.bar.siardsuite.model.TreeAttributeWrapper;
+import ch.admin.bar.siardsuite.model.TreeSelectionBinder;
 import ch.admin.bar.siardsuite.model.Tuple;
 import ch.admin.bar.siardsuite.ui.View;
 import ch.admin.bar.siardsuite.ui.common.DeactivatableListener;
@@ -99,6 +101,7 @@ public class ColumnFileDownloadPresenter {
         this.borderPane.setBottom(footerNode);
         this.treeView.setRoot(rootTreeItem);
         this.treeView.setCellFactory(new ColumnCheckBoxTreeCellFactory());
+        TreeSelectionBinder.bindColumnSelection(rootTreeItem);
         String size =  String.valueOf(rootTreeItem.getValue().getSize());
         this.totalSizeLabel.setText(size);
 

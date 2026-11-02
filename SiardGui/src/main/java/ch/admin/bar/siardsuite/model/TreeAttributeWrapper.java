@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.model;
 
 import ch.admin.bar.siard2.api.ext.form.FormData;
@@ -40,6 +41,8 @@ public class TreeAttributeWrapper {
     private final FormData formData = new FormData();
 
     private boolean checkedForDownload;
+    /** 이 트리에 선택 연동을 이미 걸었는지. 뿌리 항목에만 쓴다({@link TreeSelectionBinder}). */
+    private boolean selectionBindingsInstalled;
     private final boolean columnSelectable;
 
     private final long size; // 테이블 예상 바이트 크기
@@ -51,6 +54,10 @@ public class TreeAttributeWrapper {
     }
 
     public void markAsCheckedForDownload() { checkedForDownload = true; }
+
+    public boolean selectionBindingsInstalled() { return selectionBindingsInstalled; }
+
+    public void markSelectionBindingsInstalled() { selectionBindingsInstalled = true; }
 
     public boolean notCheckedForDownload() { return !checkedForDownload; }
 

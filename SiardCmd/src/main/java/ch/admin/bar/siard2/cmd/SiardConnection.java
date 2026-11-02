@@ -1,11 +1,16 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.cmd;
 
+import ch.admin.bar.siard2.cmd.utils.CmdI18n;
+
 import ch.admin.bar.siard2.jdbc.AccessDriver;
+import ch.admin.bar.siard2.jdbc.CUBRIDDriver;
 import ch.admin.bar.siard2.jdbc.Db2Driver;
 import ch.admin.bar.siard2.jdbc.MsSqlDriver;
 import ch.admin.bar.siard2.jdbc.MySqlDriver;
 import ch.admin.bar.siard2.jdbc.OracleDriver;
 import ch.admin.bar.siard2.jdbc.PostgresDriver;
+import ch.admin.bar.siard2.jdbc.TiberoDriver;
 import ch.enterag.utils.EU;
 import ch.enterag.utils.io.SpecialFolder;
 import java.io.File;
@@ -86,7 +91,7 @@ public class SiardConnection
     propDrivers.put("sqlserver_title", "SQL Server");
     propDrivers.put("sqlserver_sample", "jdbc:sqlserver://dbserver.enterag.ch:1433;databaseName=testdb");
     propDrivers.put("mysql", MySqlDriver.class.getName());
-    propDrivers.put("mysql_title", "SQL Server");
+    propDrivers.put("mysql_title", "MySQL");
     propDrivers.put("mysql_sample", "jdbc:mysql://dbserver.enterag.ch:3306/testdb");
     propDrivers.put("db2", Db2Driver.class.getName());
     propDrivers.put("db2_title", "DB/2");
@@ -94,6 +99,12 @@ public class SiardConnection
     propDrivers.put("access", AccessDriver.class.getName());
     propDrivers.put("access_title", "Microsoft Access");
     propDrivers.put("access_sample", "jdbc:access:D:\\Projekte\\SIARD2\\JdbcAccess\\testfiles\\dbfile.mdb");
+    propDrivers.put("cubrid", CUBRIDDriver.class.getName());
+    propDrivers.put("cubrid_title", "CUBRID");
+    propDrivers.put("cubrid_sample", "jdbc:cubrid:localhost:33000:demodb:public::");
+    propDrivers.put("tibero", TiberoDriver.class.getName());
+    propDrivers.put("tibero_title", "Tibero");
+    propDrivers.put("tibero_sample", "jdbc:tibero:thin:@localhost:8629:tibero");
     return propDrivers;
   }
 
@@ -121,6 +132,7 @@ public class SiardConnection
         FileReader fr = new FileReader(fileJdbcDrivers);
         load(fr);
         fr.close();
+        migrateLegacyTiberoDriver(fileJdbcDrivers);
       }
       else {
         
@@ -131,6 +143,7 @@ public class SiardConnection
           String sScheme = iterScheme.next();
           setProperty(sScheme, propDefault.getProperty(sScheme));
         } 
+        fileJdbcDrivers.getParentFile().mkdirs();
         FileWriter fw = new FileWriter(fileJdbcDrivers);
         store(fw, "Map from JDBC sub schema to title, sample URL and JDBC Driver class to be loaded.");
         fw.close();
@@ -144,6 +157,17 @@ public class SiardConnection
 
 
   
+  /** 벤더 드라이버를 직접 가리키던 이전 설정 파일의 tibero 항목을 래퍼 드라이버로 옮긴다. */
+  private void migrateLegacyTiberoDriver(File fileJdbcDrivers) throws IOException {
+    if (TiberoDriver.sTIBERO_DRIVER_CLASS.equals(getProperty("tibero"))) {
+      setProperty("tibero", TiberoDriver.class.getName());
+      FileWriter fw = new FileWriter(fileJdbcDrivers);
+      store(fw, "Map from JDBC sub schema to title, sample URL and JDBC Driver class to be loaded.");
+      fw.close();
+      LOG.info("jdbcdrivers.properties: tibero driver mapping migrated to '{}'", TiberoDriver.class.getName());
+    }
+  }
+
   public static SiardConnection getSiardConnection() {
     if (_sc == null)
       _sc = new SiardConnection(); 
@@ -156,8 +180,8 @@ public class SiardConnection
     if (split.length < 3 || !split[0].equals("jdbc")) {
       throw new IllegalArgumentException(jdbcUrl + " is not a valid JDBC-Url.");
     }
-    
-    return split[1];
+
+    return split[1].toLowerCase();
   }
   
   public Driver loadValidDriver(String jdbcUrl) throws SQLException, ClassNotFoundException, InstantiationException, IllegalAccessException {
@@ -166,7 +190,7 @@ public class SiardConnection
       
       String driverClassName = getProperty(subSchema);
       if (driverClassName == null) {
-        throw new IllegalArgumentException("No driver specified for url " + jdbcUrl);
+        throw new IllegalArgumentException(CmdI18n.get("cmd.error.noDriverForUrl", jdbcUrl));
       }
       Class<?> driverClass = Class.forName(driverClassName);
       Driver driver = (Driver)driverClass.newInstance();
@@ -244,8 +268,8 @@ public class SiardConnection
       String sSubScheme = sJdbcUrl.substring("jdbc".length() + 1);
       int iSubScheme = sSubScheme.indexOf(":");
       if (iSubScheme >= 0) {
-        
-        sSubScheme = sSubScheme.substring(0, iSubScheme);
+
+        sSubScheme = sSubScheme.substring(0, iSubScheme).toLowerCase();
 
         
         String sJdbcDriverClass = getProperty(sSubScheme);
@@ -368,9 +392,3 @@ public class SiardConnection
       return bLocal;
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\SIARD_KR_2.2\lib\siardcmd.jar!\ch\admin\bar\siard2\cmd\SiardConnection.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

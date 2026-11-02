@@ -1,0 +1,14 @@
+ZIP64 library
+
+Zip64File and EntryInputStream derive from Enter AG's ZIP64 implementation.
+Original copyright and author notices are retained in the source files.
+Unchanged helper classes are merged from SiardGui/lib/zip64.jar.
+
+The writer buffers appends, spools large central directories and reuses
+precompressed XML while preserving ZIP entry paths, CRCs and archive structure.
+
+From SiardGui with JDK 17:
+  .\gradlew.bat :Zip64:test :Zip64:jar
+
+Output: Zip64/build/libs/zip64.jar. The application uses the Gradle project
+dependency directly; no manual JAR replacement is necessary.

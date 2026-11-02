@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.info;
 
 import ch.admin.bar.siardsuite.framework.dialogs.DialogCloser;
@@ -38,7 +39,7 @@ public class InfoDialogPresenter {
         text.textProperty().bind(DisplayableText.of(TEXT).bindable());
 
         closeButton.setOnAction(event -> dialogCloser.closeDialog());
-        buttonBox.getChildren().add(new CloseDialogButton(dialogCloser));
+        buttonBox.getChildren().add(new CloseDialogButton(dialogCloser, "button.close"));
     }
 
     public static LoadedView<InfoDialogPresenter> load(final ServicesFacade servicesFacade) {

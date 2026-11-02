@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.api.generated;
 
 import javax.xml.bind.annotation.XmlEnum;
@@ -33,9 +34,11 @@ import javax.xml.bind.annotation.XmlType;
 @XmlEnum
 public enum ActionTimeType
 {
+  @XmlEnumValue("BEFORE")
   BEFORE("BEFORE"),
+  @XmlEnumValue("INSTEAD OF")
   INSTEAD_OF("INSTEAD OF"),
-  
+  @XmlEnumValue("AFTER")
   AFTER("AFTER");
   private final String value;
   
@@ -56,9 +59,3 @@ public enum ActionTimeType
     throw new IllegalArgumentException(v);
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siardapi.jar!\ch\admin\bar\siard2\api\generated\ActionTimeType.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

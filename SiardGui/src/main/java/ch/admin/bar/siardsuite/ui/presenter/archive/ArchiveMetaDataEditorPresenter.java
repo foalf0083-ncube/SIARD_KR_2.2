@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive;
 
 import ch.admin.bar.siard2.api.Archive;
@@ -57,6 +58,7 @@ public class ArchiveMetaDataEditorPresenter {
     private static final I18nKey EXPORT_LOCATION_LOB = I18nKey.of("archiveMetadata.view.exportLocationLob");
     private static final I18nKey EXPORT_VIEWS_AS_TABLES = I18nKey.of("archiveMetadata.view.exportViewsAsTables");
     private static final I18nKey SAVE_ARCHIVE = I18nKey.of("button.save.archive");
+    private static final I18nKey TIMESPAN_PROMPT = I18nKey.of("archiveMetadata.view.timespanPrompt");
 
     @FXML
     protected BorderPane borderPane;
@@ -162,6 +164,7 @@ public class ArchiveMetaDataEditorPresenter {
         this.descriptionLabel.textProperty().bind(DisplayableText.of(DATABASE_DESCRIPTION).bindable());
         this.ownerLabel.textProperty().bind(DisplayableText.of(DELIVERING_OFFICE).bindable());
         this.dataOriginTimespanLabel.textProperty().bind(DisplayableText.of(DATABASE_CREATION_DATE).bindable());
+        this.dataOriginTimespan.promptTextProperty().bind(DisplayableText.of(TIMESPAN_PROMPT).bindable());
         this.archiverLabel.textProperty().bind(DisplayableText.of(ARCHIVER_NAME).bindable());
         this.archiverContactLabel.textProperty().bind(DisplayableText.of(ARCHIVER_CONTACT).bindable());
         this.lobExportLabel.textProperty().bind(DisplayableText.of(EXPORT_LOCATION_LOB).bindable());
@@ -234,7 +237,7 @@ public class ArchiveMetaDataEditorPresenter {
         this.description.setText(metadata.getDescription());
         this.owner.setText(removePlaceholder(metadata.getDataOwner()));
         //this.dataOriginTimespan.setValue(removePlaceholder(metadata.getDataOriginTimespan()));
-        this.dataOriginTimespan.setValue("KTC");
+        this.dataOriginTimespan.setValue("KST");
         handleTimeZoneSelection();
 
         this.archiverName.setText(metadata.getArchiver());
@@ -258,13 +261,13 @@ public class ArchiveMetaDataEditorPresenter {
             }
 
             // 텍스트 업데이트
-            dataOriginTimespanLabel.setText("Current Time: " + timestamp);
+            dataOriginTimespanLabel.setText(I18n.get("archiveMetadata.view.currentTime") + timestamp);
         }
     }
 
     // 시간대에 따른 현재 시간 반환
     private String getCurrentTimestampForTimeZone(String timeZone) {
-        ZoneId zoneId = "KTC".equals(timeZone) ? ZoneId.of("Asia/Seoul") : ZoneId.of("UTC");
+        ZoneId zoneId = "KST".equals(timeZone) ? ZoneId.of("Asia/Seoul") : ZoneId.of("UTC");
         return ZonedDateTime.now(zoneId).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 

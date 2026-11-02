@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.api.primary;
 
 import ch.admin.bar.siard2.api.*;
@@ -32,6 +33,15 @@ public class RecordImpl implements Record {
     }
 
     private URI _uriTemporaryLobFolder = null;
+    private RecordRetainerImpl streamingLobWriter;
+
+    void setStreamingLobWriter(RecordRetainerImpl writer) {
+        streamingLobWriter = writer;
+    }
+
+    RecordRetainerImpl getStreamingLobWriter() {
+        return streamingLobWriter;
+    }
 
     public URI getTemporaryLobFolder() {
         return this._uriTemporaryLobFolder;

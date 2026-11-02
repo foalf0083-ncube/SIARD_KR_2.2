@@ -1,8 +1,8 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive.browser;
 
 import ch.admin.bar.siardsuite.model.TreeAttributeWrapper;
 import javafx.scene.control.TreeCell;
-import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.util.Callback;
 
@@ -12,25 +12,16 @@ import javafx.util.Callback;
  */
 public class TableCheckBoxTreeCellFactory implements Callback<TreeView<TreeAttributeWrapper>, TreeCell<TreeAttributeWrapper>> {
 
-    private final GenericArchiveBrowserPresenter genericArchiveBrowserPresenter;
-    private final TreeView<TreeAttributeWrapper> treeView;
-
-    public TableCheckBoxTreeCellFactory(GenericArchiveBrowserPresenter presenter, TreeView<TreeAttributeWrapper> treeView) {
-        this.genericArchiveBrowserPresenter = presenter;
-        this.treeView = treeView;
-    }
-
     @Override
-    public TreeCell<TreeAttributeWrapper> call(TreeView<TreeAttributeWrapper> treeViews) {
+    public TreeCell<TreeAttributeWrapper> call(TreeView<TreeAttributeWrapper> treeView) {
         return CustomCheckBoxTreeCell.initCheckBoxTree(param -> {
-                    if (param != null && param.getValue().shouldHaveCheckBox()) {
+                    if (param != null && param.getValue() != null && param.getValue().shouldHaveCheckBox()) {
                         return param.getValue().selectedProperty();
                     } else {
                         return null;
                     }
-                },
-                genericArchiveBrowserPresenter,
-                treeView);
+                }
+        );
     }
 
 }

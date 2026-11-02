@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.connection;
 
 import ch.admin.bar.siardsuite.service.database.DbmsRegistry;
@@ -90,6 +91,10 @@ public class ServerBasedDbmsConnectionPropertiesForm extends ConnectionPropertie
                         .orElse(""))
                 .prefWidth(FORM_FIELD_WITH)
                 .validator(Validator.IS_NOT_EMPTY_STRING_VALIDATOR)
+                // 사용자명도 URL 을 다시 만들게 한다. 이 연결이 빠져 있어 CUBRID 처럼
+                // 사용자명이 URL 에 들어가는 데이터베이스는 그 자리가 빈 채로 남았고,
+                // 자기 검증에 걸려 다음 단계로 넘어갈 수 없었다.
+                .onNewUserInput(newUser -> handleJdbcUrl())
                 .build();
 
         val password = StringFormField.builder()
@@ -168,6 +173,8 @@ public class ServerBasedDbmsConnectionPropertiesForm extends ConnectionPropertie
     }
 
     private void handleJdbcUrl() {
+        // 사용자명은 아직 비어 있을 수 있으므로 조건에 넣지 않는다. 비어 있으면 그대로
+        // 빈 자리로 만들어 두고, 값이 들어오는 즉시 위의 연결이 다시 부른다.
         if (host.hasValidValue() &&
                 port.hasValidValue() &&
                 dbName.hasValidValue()) {

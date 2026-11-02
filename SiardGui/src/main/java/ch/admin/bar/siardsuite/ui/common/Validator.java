@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.common;
 
 import ch.admin.bar.siardsuite.framework.i18n.DisplayableText;
@@ -18,7 +19,8 @@ public class Validator<T> {
     private static final I18nKey COLONS_NOT_ALLOWED = I18nKey.of("valueValidation.doesNotIncludeColons");
     private static final I18nKey SLASH_NOT_ALLOWED = I18nKey.of("connection.view.error.connection.name.symbol");
     private static final I18nKey NEED_TO_EXIST = I18nKey.of("valueValidation.needsToBeExistingFile");
-    private static final I18nKey SHOULD_HAVE_NUMERIC_VALUE = I18nKey.of("valueValidation.");
+    private static final I18nKey SHOULD_HAVE_NUMERIC_VALUE =
+            I18nKey.of("valueValidation.shouldHaveNumericValue");
 
     public static final Validator<String> IS_NOT_EMPTY_STRING_VALIDATOR = Validator.<String>builder()
             .message(DisplayableText.of(CAN_NOT_BE_EMPTY))
@@ -52,7 +54,7 @@ public class Validator<T> {
     public static final Pattern NUMERIC_VALUE = Pattern.compile("^\\d+$");
 
     public static final Validator<String> SHOULD_HAVE_NUMERIC_VALUE_VALIDATOR = Validator.<String>builder()
-            .message(DisplayableText.of("should have numeric value"))
+            .message(DisplayableText.of(SHOULD_HAVE_NUMERIC_VALUE))
             .isValidCheck(
                     nonNullableValue -> Optional.of(nonNullableValue)
                             .filter(v -> NUMERIC_VALUE.matcher(v).matches())

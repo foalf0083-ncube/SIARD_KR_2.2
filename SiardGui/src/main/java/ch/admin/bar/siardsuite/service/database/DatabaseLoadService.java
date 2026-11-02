@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.service.database;
 
 import ch.admin.bar.dbexception.DatabaseExceptionHandlerHelper;
@@ -75,6 +76,8 @@ public class DatabaseLoadService extends Service<ObservableList<Pair<String, Lon
 
                 val metaDataFromDb = MetaDataFromDb.newInstance(connection.getMetaData(), archive.getMetaData());
                 metaDataFromDb.setQueryTimeout(timeout);
+                // 미리보기(저장 위치 없이 메타데이터만)는 고를 목록만 필요하다. 최종 추출은 고른 테이블로 다시 읽는다.
+                metaDataFromDb.setPreviewLight(instruction.getLoadOnlyMetadata() && instruction.getSaveAt().isEmpty());
 
                 updateValue(FXCollections.observableArrayList(new Pair<>("Metadata", -1L)));
                 updateProgress(0, 100);

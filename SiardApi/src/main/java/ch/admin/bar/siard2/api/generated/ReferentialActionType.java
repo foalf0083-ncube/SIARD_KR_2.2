@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.api.generated;
 
 import javax.xml.bind.annotation.XmlEnum;
@@ -35,12 +36,15 @@ import javax.xml.bind.annotation.XmlType;
 @XmlEnum
 public enum ReferentialActionType
 {
+  @XmlEnumValue("CASCADE")
   CASCADE("CASCADE"),
+  @XmlEnumValue("SET NULL")
   SET_NULL("SET NULL"),
-  
+  @XmlEnumValue("SET DEFAULT")
   SET_DEFAULT("SET DEFAULT"),
-  
+  @XmlEnumValue("RESTRICT")
   RESTRICT("RESTRICT"),
+  @XmlEnumValue("NO ACTION")
   NO_ACTION("NO ACTION");
   
   private final String value;
@@ -62,9 +66,3 @@ public enum ReferentialActionType
     throw new IllegalArgumentException(v);
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siardapi.jar!\ch\admin\bar\siard2\api\generated\ReferentialActionType.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

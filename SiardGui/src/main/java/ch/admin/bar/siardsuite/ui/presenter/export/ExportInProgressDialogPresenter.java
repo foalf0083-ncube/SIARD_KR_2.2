@@ -1,5 +1,7 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.export;
 
+import ch.admin.bar.siardsuite.util.I18n;
 import ch.admin.bar.siardsuite.framework.ServicesFacade;
 import ch.admin.bar.siardsuite.framework.dialogs.DialogCloser;
 import ch.admin.bar.siardsuite.framework.view.FXMLLoadHelper;
@@ -37,7 +39,7 @@ public class ExportInProgressDialogPresenter {
     public void init(DialogCloser dialogCloser, ServicesFacade servicesFacade) {
         this.dialogCloser = dialogCloser;
         this.servicesFacade = servicesFacade;
-        title.setText("Export in progress");
+        title.setText(I18n.get("export.inProgress.title"));
         progressBar.setProgress(0);
         if (percentLabel != null) percentLabel.setText("0%");
         instance = this;

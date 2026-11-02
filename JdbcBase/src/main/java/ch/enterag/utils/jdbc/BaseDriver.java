@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.enterag.utils.jdbc;
 
 import ch.enterag.utils.logging.IndentLogger;
@@ -40,7 +41,7 @@ public abstract class BaseDriver
             sDriver = sUrl.substring("jdbc:".length());
             int i = sDriver.indexOf(':');
             if (i > 0) {
-                sDriver = sDriver.substring(0, i);
+                sDriver = sDriver.substring(0, i).toLowerCase();
             } else {
                 throw new IllegalArgumentException("Second part of JDBC URL could not be extracted!");
             }

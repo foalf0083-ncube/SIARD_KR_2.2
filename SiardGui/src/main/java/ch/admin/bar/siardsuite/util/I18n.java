@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.util;
 
 import ch.admin.bar.siardsuite.framework.i18n.DisplayableText;
@@ -43,11 +44,15 @@ public class I18n {
 
     public static Locale getDefaultLocale() {
         Locale defaultLocale = Locale.getDefault();
-        return getSupportedLocales().contains(defaultLocale) ? defaultLocale : Locale.ENGLISH;
+        return getSupportedLocales().stream()
+                .filter(supported -> supported.getLanguage().equals(defaultLocale.getLanguage()))
+                .findFirst()
+                .orElse(Locale.ENGLISH);
     }
 
     public static List<Locale> getSupportedLocales() {
         List<Locale> locales = new ArrayList<>();
+        locales.add(Locale.KOREAN);
         locales.add(Locale.ENGLISH);
         locales.add(Locale.GERMAN);
         locales.add(Locale.FRENCH);
@@ -115,7 +120,9 @@ public class I18n {
 
     public static String getLocaleDate(final LocalDate date) {
         final String pattern;
-        if (getLocale().equals(Locale.ENGLISH)) {
+        if (Locale.KOREAN.getLanguage().equals(getLocale().getLanguage())) {
+            pattern = "yyyy. MM. dd.";
+        } else if (getLocale().equals(Locale.ENGLISH)) {
             pattern = "dd MMM yyyy";
         } else {
             pattern = "dd. MMM yyyy";

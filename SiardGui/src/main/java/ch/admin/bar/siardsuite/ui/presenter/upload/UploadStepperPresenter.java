@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.upload;
 
 import ch.admin.bar.siard2.api.Archive;
@@ -29,7 +30,7 @@ public class UploadStepperPresenter implements Destructible {
     private static final I18nKey RESULT_TITLE = I18nKey.of("upload.step.name.result");
 
     private static final StepDefinition<Void, DbmsWithInitialValue> SELECT_DBMS =
-            new StepDefinition<>(SELECT_DBMS_TITLE, ArchiveChooseDbmsPresenter::load);
+            new StepDefinition<>(SELECT_DBMS_TITLE, ArchiveChooseDbmsPresenter::loadForUpload);
 
     private static final StepDefinition<ArchiveAdder<DbmsWithInitialValue>, UploadArchiveData> EDIT_DB_CONNECTION_PROPERTIES =
             new StepDefinition<>(DB_CONNECTION_TITLE, UploadConnectionPresenter::load);

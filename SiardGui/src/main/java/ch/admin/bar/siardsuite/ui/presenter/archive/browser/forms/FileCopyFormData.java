@@ -1,5 +1,7 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive.browser.forms;
 
+import ch.admin.bar.siardsuite.util.I18n;
 import ch.admin.bar.siard2.api.ext.form.FormData;
 import ch.admin.bar.siardsuite.model.TreeAttributeWrapper;
 import javafx.geometry.Insets;
@@ -23,7 +25,7 @@ public class FileCopyFormData {
     }
 
     public Tab getFileCopyTab() {
-        Tab fileCopyTab = new Tab("File Copy");
+        Tab fileCopyTab = new Tab(I18n.get("fileDownload.tab.fileCopy"));
         VBox fileCopyLayout = new VBox(10);
         fileCopyLayout.setPadding(new Insets(30));
         fileCopyLayout.getChildren().addAll(getBrowseBox(), getSaveButton());
@@ -34,14 +36,14 @@ public class FileCopyFormData {
 
     private HBox getBrowseBox() {
         HBox directoryBox = new HBox(20);
-        targetDirectoryField.setPromptText("No Directory Selected");
+        targetDirectoryField.setPromptText(I18n.get("fileDownload.noDirectorySelected"));
         targetDirectoryField.setPrefWidth(500);
 
-        Button browseButton = new Button("Browse");
+        Button browseButton = new Button(I18n.get("fileDownload.button.browse"));
 
         browseButton.setOnAction(e -> {
             DirectoryChooser directoryChooser = new DirectoryChooser();
-            directoryChooser.setTitle("Select directory");
+            directoryChooser.setTitle(I18n.get("fileDownload.selectDirectory.title"));
 
             File selectedDirectory = directoryChooser.showDialog(directoryBox.getScene().getWindow());
 
@@ -56,7 +58,7 @@ public class FileCopyFormData {
     }
 
     private Button getSaveButton() {
-        Button saveButton = new Button("Save");
+        Button saveButton = new Button(I18n.get("button.save"));
         saveButton.setOnAction(e -> {
             String targetDirectoryFieldText = targetDirectoryField.getText();
             FormData formData = FormData.builder()

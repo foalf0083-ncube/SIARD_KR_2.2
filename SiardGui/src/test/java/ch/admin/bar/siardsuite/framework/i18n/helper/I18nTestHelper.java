@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.framework.i18n.helper;
 
 import ch.admin.bar.siardsuite.SiardApplication;
@@ -15,7 +16,41 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class I18nTestHelper {
+
+    static {
+        try {
+            Class<?> platform = Class.forName("javafx.application.Platform");
+            java.util.concurrent.CountDownLatch ready = new java.util.concurrent.CountDownLatch(1);
+            platform.getMethod("startup", Runnable.class).invoke(null, (Runnable) ready::countDown);
+            if (!ready.await(30, java.util.concurrent.TimeUnit.SECONDS)) {
+                System.err.println("[I18nTestHelper] JavaFX 툴킷이 30초 안에 준비되지 않았다");
+            }
+        } catch (Exception e) {
+            Throwable cause = (e instanceof java.lang.reflect.InvocationTargetException)
+                    ? e.getCause() : e;
+            boolean alreadyStarted = cause instanceof IllegalStateException
+                    && String.valueOf(cause.getMessage()).contains("already");
+            if (!alreadyStarted) {
+                System.err.println("[I18nTestHelper] JavaFX 툴킷 기동 실패: "
+                        + cause.getClass().getName() + ": " + cause.getMessage());
+                try {
+                    Class<?> p = Class.forName("javafx.application.Platform");
+                    System.err.println("[I18nTestHelper]   Platform 출처="
+                            + p.getProtectionDomain().getCodeSource().getLocation());
+                    for (java.lang.reflect.Method m : p.getMethods()) {
+                        if (m.getName().equals("startup")) {
+                            System.err.println("[I18nTestHelper]   startup 시그니처="
+                                    + java.util.Arrays.toString(m.getParameterTypes()));
+                        }
+                    }
+                } catch (Throwable ignore) {
+                }
+            }
+        }
+    }
+
     public static final List<ResourceBundle> BUNDLES = Arrays.asList(
+            ResourceBundle.getBundle("ch/admin/bar/siardsuite/i18n/messages", Locale.KOREAN),
             ResourceBundle.getBundle("ch/admin/bar/siardsuite/i18n/messages", Locale.GERMAN),
             ResourceBundle.getBundle("ch/admin/bar/siardsuite/i18n/messages", Locale.FRENCH),
             ResourceBundle.getBundle("ch/admin/bar/siardsuite/i18n/messages", Locale.ITALIAN),

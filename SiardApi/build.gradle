@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 plugins {
     id 'java'
 }
@@ -5,16 +6,28 @@ plugins {
 group = 'ch.admin.bar'
 version = '1.0-SNAPSHOT'
 
+sourceSets {
+    main {
+        resources {
+            srcDir 'src/main/java'
+            exclude '**/*.java'
+            exclude '**/MANIFEST.MF'
+        }
+    }
+}
+
 repositories {
     mavenCentral()
 }
 
 dependencies {
+    implementation project(':Zip64')
     compileOnly 'org.projectlombok:lombok:1.18.34'
     annotationProcessor 'org.projectlombok:lombok:1.18.34'
 
     implementation project(':EnterUtils')
-    implementation fileTree(include: ['*.jar'], dir: "$rootDir/lib")
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    implementation fileTree(include: ['*.jar'], exclude: ['jfxrt.jar', 'zip64.jar'], dir: "$rootDir/lib")
     implementation group: 'com.jcraft', name: 'jsch', version: '0.1.55'
 
     testImplementation platform('org.junit:junit-bom:5.10.0')

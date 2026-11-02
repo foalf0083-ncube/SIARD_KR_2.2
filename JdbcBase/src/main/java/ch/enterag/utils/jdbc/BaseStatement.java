@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.enterag.utils.jdbc;
 
 import java.sql.Connection;
@@ -261,9 +262,3 @@ public abstract class BaseStatement
         return (T) statement;
     }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siard-lib\lib\jdbcbase.jar!\ch\entera\\utils\jdbc\BaseStatement.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

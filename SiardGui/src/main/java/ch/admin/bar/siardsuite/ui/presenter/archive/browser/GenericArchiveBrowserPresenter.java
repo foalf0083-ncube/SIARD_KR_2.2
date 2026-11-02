@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive.browser;
 
 import ch.admin.bar.siard2.api.primary.LobReader;
@@ -9,6 +10,7 @@ import ch.admin.bar.siardsuite.framework.i18n.keys.I18nKey;
 import ch.admin.bar.siardsuite.framework.view.FXMLLoadHelper;
 import ch.admin.bar.siardsuite.framework.view.LoadedView;
 import ch.admin.bar.siardsuite.model.TreeAttributeWrapper;
+import ch.admin.bar.siardsuite.model.TreeSelectionBinder;
 import ch.admin.bar.siardsuite.model.Tuple;
 import ch.admin.bar.siardsuite.model.database.SiardArchive;
 import ch.admin.bar.siardsuite.ui.View;
@@ -21,6 +23,7 @@ import ch.admin.bar.siardsuite.ui.component.rendering.model.RenderableForm;
 import ch.admin.bar.siardsuite.ui.presenter.archive.browser.forms.RowsOverviewForm;
 import ch.admin.bar.siardsuite.util.OptionalHelper;
 import io.github.palexdev.materialfx.controls.MFXButton;
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.fxml.FXML;
@@ -130,6 +133,8 @@ public class GenericArchiveBrowserPresenter {
     private ErrorHandler errorHandler;
     private Navigator navigator;
 
+    private boolean sizeRefreshScheduled = false; // 선택이 한꺼번에 바뀔 때 크기 합계를 한 번만 다시 센다
+
     private final BooleanProperty hasChanged = new SimpleBooleanProperty(false);
     private String currentSearchTerm = null;
     private Map<String, Long> searchResultCache = new HashMap<>();
@@ -139,6 +144,25 @@ public class GenericArchiveBrowserPresenter {
     private TreeItem<TreeAttributeWrapper> initialRootItem; // 최초 로드된 트리(정확한 카운트 유지)
     private Task<Void> currentSearchTask; // 진행 중인 검색 태스크
     private StackPane currentSearchOverlay; // 진행 중 오버레이
+
+    /**
+     * 선택 연동을 트리에 건다. 목록 칸이 아니라 모형에 걸어야 칸을 다시 쓸 때 선택이 다른 줄로 번지지 않는다.
+     */
+    private void bindSelection(TreeItem<TreeAttributeWrapper> root) {
+        TreeSelectionBinder.bindTableSelection(root, this::scheduleSizeRefresh);
+    }
+
+    /** 크기 합계 갱신을 다음 차례로 미뤄 한 번만 세게 한다. 스키마를 켜면 테이블이 한꺼번에 바뀐다. */
+    private void scheduleSizeRefresh() {
+        if (sizeRefreshScheduled) {
+            return;
+        }
+        sizeRefreshScheduled = true;
+        Platform.runLater(() -> {
+            sizeRefreshScheduled = false;
+            SelectedSizeSummary.refresh(treeView.getRoot(), totalSizeLabel);
+        });
+    }
 
     public void init(
             final Dialogs dialogs,
@@ -156,9 +180,10 @@ public class GenericArchiveBrowserPresenter {
         this.navigator = navigator;
         this.borderPane.setBottom(footerNode);
         this.treeView.setRoot(rootTreeItem);
-        this.treeView.setCellFactory(new TableCheckBoxTreeCellFactory(this, treeView));
+        this.treeView.setCellFactory(new TableCheckBoxTreeCellFactory());
         this.treeBuilder = treeBuilder;
         this.initialRootItem = rootTreeItem; // 초기 트리 보관
+        bindSelection(rootTreeItem);
 
         this.archiveStep = archiveStep;
 
@@ -434,6 +459,7 @@ public class GenericArchiveBrowserPresenter {
                     treeView.getSelectionModel().clearSelection();
                     treeView.setRoot(null);
                     treeView.setRoot(newRootItem);
+                    bindSelection(newRootItem);
                     if (searchTerm == null || searchTerm.isBlank()) {
                         treeView.getSelectionModel().select(newRootItem);
                     }
@@ -501,6 +527,36 @@ public class GenericArchiveBrowserPresenter {
 
         this.currentSearchTask = task;
         new Thread(task).start();
+    }
+
+    /**
+     * 저장하지 않은 편집이 있으면 확인을 받은 뒤 동작을 이어간다.
+     *
+     * <p>트리 선택 변경 외의 이탈 경로(홈 등)에서도 같은 검사를 하기 위한 진입점이다.
+     * 검사 없이 나가면 편집 내용이 조용히 사라진다.</p>
+     */
+    public void runIfNoUnsavedChanges(final Runnable action) {
+        if (!hasChanged.get()) {
+            action.run();
+            return;
+        }
+        this.dialogs.open(View.UNSAVED_CHANGES, result -> {
+            switch (result) {
+                case CANCEL:
+                    break;
+                case DROP_CHANGES:
+                    currentFormRenderer.dropChanges();
+                    action.run();
+                    break;
+                case SAVE_CHANGES:
+                    val report = currentFormRenderer.saveChanges();
+                    ifPresentOrElse(
+                            report.getFailedMessage(),
+                            this::showErrorMessage,
+                            action);
+                    break;
+            }
+        });
     }
 
     private void onSelectedTreeItemChanged(final DeactivatableListener.Change<TreeItem<TreeAttributeWrapper>> change) {
@@ -618,6 +674,11 @@ public class GenericArchiveBrowserPresenter {
                         rootTreeItem,
                         treeBuilder,
                         archiveStep);
+        // 창 닫기처럼 화면 밖에서 오는 이탈도 저장 여부를 묻게 한다.
+        // 다른 화면으로 옮기면 Navigator 가 이 등록을 지운다.
+        if (archiveStep == ArchiveStep.OPEN_ARCHIVE) {
+            navigator.getExitGuard().register(loaded.getController()::runIfNoUnsavedChanges);
+        }
         return loaded;
     }
 

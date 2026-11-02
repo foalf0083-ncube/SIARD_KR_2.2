@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.mysql;
 
 import ch.admin.bar.siard2.mysql.datatype.MySqlPredefinedType;
@@ -79,9 +80,3 @@ public class MySqlSqlFactory
     return (DropTableStatement)new MySqlDropTableStatement(this);
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siard-lib\lib\jdbcmysql-2.2.2.jar!\ch\admin\bar\siard2\mysql\MySqlSqlFactory.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

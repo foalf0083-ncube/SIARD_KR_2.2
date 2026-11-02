@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.mysql.expression;
 
 import ch.admin.bar.siard2.mysql.MySqlLiterals;
@@ -48,9 +49,3 @@ public class MySqlLiteral
     return sFormatted;
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siard-lib\lib\jdbcmysql-2.2.2.jar!\ch\admin\bar\siard2\mysql\expression\MySqlLiteral.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

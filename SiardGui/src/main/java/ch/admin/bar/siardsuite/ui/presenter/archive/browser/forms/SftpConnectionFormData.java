@@ -1,5 +1,7 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive.browser.forms;
 
+import ch.admin.bar.siardsuite.util.I18n;
 import ch.admin.bar.siard2.api.ext.SftpConnection;
 import ch.admin.bar.siard2.api.ext.form.FormData;
 import ch.admin.bar.siardsuite.model.TreeAttributeWrapper;
@@ -24,11 +26,11 @@ import static ch.admin.bar.siard2.api.ext.SftpSender.checkConnection;
 public class SftpConnectionFormData {
 
     private final SftpConnection sftpConnection;
-    private final Label hostLabel = new Label("Host");
-    private final Label portLabel = new Label("Port");
-    private final Label userLabel = new Label("User");
-    private final Label passwordLabel = new Label("Password");
-    private final Label targetDirectoryLabel = new Label("Target Directory");
+    private final Label hostLabel = new Label(I18n.get("sftp.label.host"));
+    private final Label portLabel = new Label(I18n.get("sftp.label.port"));
+    private final Label userLabel = new Label(I18n.get("sftp.label.user"));
+    private final Label passwordLabel = new Label(I18n.get("sftp.label.password"));
+    private final Label targetDirectoryLabel = new Label(I18n.get("sftp.label.targetDirectory"));
 
     private final Label hostErrorLabel = new Label();
     private final Label portErrorLabel = new Label();
@@ -81,7 +83,7 @@ public class SftpConnectionFormData {
     }
 
     public Tab getSftpConnectionTab() {
-        Tab sftpTab = new Tab("SFTP connection");
+        Tab sftpTab = new Tab(I18n.get("sftp.tab.title"));
         sftpTab.setClosable(false);
 
         VBox sftpForm = getFormLayout();
@@ -118,14 +120,14 @@ public class SftpConnectionFormData {
 
     private HBox getBrowseBox() {
         HBox directoryBox = new HBox(20);
-        targetDirectoryField.setPromptText("No Directory Selected");
+        targetDirectoryField.setPromptText(I18n.get("fileDownload.noDirectorySelected"));
         targetDirectoryField.setPrefWidth(500);
 
-        Button browseButton = new Button("Browse");
+        Button browseButton = new Button(I18n.get("fileDownload.button.browse"));
 
         browseButton.setOnAction(e -> {
             DirectoryChooser directoryChooser = new DirectoryChooser();
-            directoryChooser.setTitle("Select directory");
+            directoryChooser.setTitle(I18n.get("fileDownload.selectDirectory.title"));
 
             File selectedDirectory = directoryChooser.showDialog(directoryBox.getScene().getWindow());
 
@@ -140,7 +142,7 @@ public class SftpConnectionFormData {
     }
 
     private Button getSaveButton() {
-        Button saveButton = new Button("Save");
+        Button saveButton = new Button(I18n.get("button.save"));
         saveButton.setOnAction(e -> {
             hideAllValidationLabel();
             if (validated()) {
@@ -173,9 +175,9 @@ public class SftpConnectionFormData {
                     ((Stage) saveButton.getScene().getWindow()).close();
                 } else {
                     Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Connection Failed");
+                    alert.setTitle(I18n.get("sftp.connectionFailed.title"));
                     alert.setHeaderText(null);
-                    alert.setContentText("Failed to establish a connection. Please check your settings and try again.");
+                    alert.setContentText(I18n.get("sftp.connectionFailed.message"));
                     alert.showAndWait();
                 }
             } else {

@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.api.primary;
 
 import ch.admin.bar.siard2.api.*;
@@ -80,7 +81,9 @@ public class TableImpl extends SearchImpl implements Table {
         try {
             if (_trans == null) {
 //        TransformerFactory tf = TransformerFactory.newInstance(TransformerFactoryImpl.class.getName(), null);
-                TransformerFactory tf = TransformerFactory.newInstance();
+                // 클래스패스의 다른 구현을 고르지 않고 JDK 기본 구현을 쓴다. Oracle 10g 드라이버 묶음의 xmlparserv2.jar 가
+                // 자기 변환기(oracle.xml.jaxp.JXSAXTransformerFactory)를 등록하는데, 이것으로는 표 XSD 가 0바이트로 써진다.
+                TransformerFactory tf = TransformerFactory.newDefaultInstance();
                 _trans = tf.newTransformer();
                 _trans.setOutputProperty("omit-xml-declaration", "no");
                 _trans.setOutputProperty("method", "xml");
@@ -385,6 +388,15 @@ public class TableImpl extends SearchImpl implements Table {
 
     public RecordRetainerImpl createRecords() throws IOException {
         return new RecordRetainerImpl(this);
+    }
+
+    /**
+     * Append-only extraction: stream internal LOBs to the archive and spool just
+     * the table XML. A cell must be assigned once, before its record is put.
+     * The ordinary createRecords API retains its existing editing behavior.
+     */
+    public RecordRetainerImpl createRecordsStreamingLobs() throws IOException {
+        return new RecordRetainerImpl(this, true);
     }
 
 

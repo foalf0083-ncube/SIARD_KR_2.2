@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.api.meta;
 
 import ch.admin.bar.siard2.api.Archive;
@@ -30,6 +31,8 @@ public class MetaFieldImpl
   public static final String _sFIELD_FOLDER_PREFIX = "field";
   private static final ObjectFactory _of = new ObjectFactory();
   private final Map<String, MetaField> _mapMetaFields = new HashMap<>();
+  /** 원소 정의(FieldType)로 필드를 바로 찾는 색인. _mapMetaFields 에 넣는 곳에서 같이 넣는다. */
+  private final Map<FieldType, MetaField> _mapMetaFieldsByType = new java.util.IdentityHashMap<>();
 
   
   private Map<String, MetaField> getMetaFieldsMap() throws IOException {
@@ -193,6 +196,7 @@ public class MetaFieldImpl
         FieldType ftSub = fts.getField().get(iField);
         MetaField mfSub = newInstance(this, ftSub, this._sFolder, iField + 1);
         this._mapMetaFields.put(XU.fromXml(ftSub.getName()), mfSub);
+        this._mapMetaFieldsByType.put(ftSub, mfSub);
       } 
     }
   }
@@ -610,11 +614,16 @@ public class MetaFieldImpl
       for (int i = this._mapMetaFields.size(); i < iField + 1; i++)
         createMetaField(); 
     }
-    for (Iterator<String> iterField = getMetaFieldsMap().keySet().iterator(); mf == null && iterField.hasNext(); ) {
-      
-      String sName = iterField.next();
-      MetaFieldImpl mfi = (MetaFieldImpl)getMetaField(sName);
-      if (this._ft.getFields().getField().get(iField) == mfi._ft)
+    // 원소마다 getMetaField(이름)을 부르면 그때마다 정규식 검사와 배열 차수 계산(형식 사슬 전체)이 되풀이돼
+    // 배열 원소 N 개를 쓰는 데 N^2 번 일이 든다(공간 자료형 좌표 배열에서 추출 시간 대부분).
+    // 원소 정의로 바로 찾는다. 색인에 없을 때만 예전처럼 훑는다. 고르는 필드는 같다.
+    // (훑기만 하면 지금까지 나온 가장 큰 배열 크기만큼 매번 돌아, 큰 도형 하나 뒤로 모든 행이 느려졌다.)
+    Map<String, MetaField> mapFields = getMetaFieldsMap();
+    FieldType ftTarget = this._ft.getFields().getField().get(iField);
+    mf = this._mapMetaFieldsByType.get(ftTarget);
+    for (Iterator<MetaField> iterField = mapFields.values().iterator(); mf == null && iterField.hasNext(); ) {
+      MetaFieldImpl mfi = (MetaFieldImpl)iterField.next();
+      if (ftTarget == mfi._ft)
         mf = mfi; 
     } 
     return mf;
@@ -667,6 +676,7 @@ public class MetaFieldImpl
       ft.setName(XU.toXml(sName));
       mf = newInstance(this, ft, this._sFolder, iPosition);
       this._mapMetaFields.put(mf.getName(), mf);
+      this._mapMetaFieldsByType.put(ft, mf);
       getArchiveImpl().isMetaDataDifferent(null, mf);
       if (this._ftTemplate != null) {
         
@@ -721,9 +731,3 @@ public class MetaFieldImpl
     return getName();
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siardapi.jar!\ch\admin\bar\siard2\api\meta\MetaFieldImpl.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

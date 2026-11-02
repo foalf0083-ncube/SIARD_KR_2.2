@@ -1,53 +1,34 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive.browser;
 
-import ch.admin.bar.siard2.cmd.utils.ByteFormatter;
 import ch.admin.bar.siardsuite.model.TreeAttributeWrapper;
-import ch.admin.bar.siardsuite.model.TreeItemUtil;
-import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.TreeItem;
-import javafx.scene.control.TreeView;
 import javafx.scene.control.cell.CheckBoxTreeCell;
 import javafx.util.Callback;
-import lombok.Getter;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import static ch.admin.bar.siardsuite.model.TreeAttributeWrapper.DatabaseAttribute.TABLE;
-import static ch.admin.bar.siardsuite.model.TreeItemUtil.findChildrenTreeItemList;
 
 /**
  * <p>{@link CheckBoxTreeCell} 을 상속하는 클래스.</p>
- * {@link CheckBoxTreeCell#updateItem(Object, boolean)}를 재정의하여 체크박스가 필요한 목록과 체크박스를 연동한다
+ * 스키마와 테이블 선택 화면의 목록 칸이다. 표시만 맡는다.
+ *
+ * <p>체크박스를 만들어 항목에 묶고 다시 푸는 일은 상위 클래스가 이미 올바르게 한다. 여기서 체크박스를 따로
+ * 만들면 목록 칸이 다시 쓰일 때(스크롤 · 펼침) 버려진 체크박스가 예전 항목에 묶인 채 남아 다른 줄의 선택을
+ * 건드린다. 그래서 체크박스가 필요 없는 줄에서 그림을 지우는 일만 한다.
+ *
+ * <p>선택이 퍼지는 방식(스키마에서 테이블로)과 크기 합계 갱신은 화면이 아니라 모형에 건다.
+ * {@link ch.admin.bar.siardsuite.model.TreeSelectionBinder} 참고.
  */
 public class CustomCheckBoxTreeCell extends CheckBoxTreeCell<TreeAttributeWrapper> {
 
-    private final GenericArchiveBrowserPresenter genericArchiveBrowserPresenter;
-    private final TreeView<TreeAttributeWrapper> treeView;
-
-     public static long selectedTotalSize = 0;
-
-    private CustomCheckBoxTreeCell(Callback<TreeItem<TreeAttributeWrapper>, ObservableValue<Boolean>> callback,
-                                   GenericArchiveBrowserPresenter genericArchiveBrowserPresenter,
-                                   TreeView<TreeAttributeWrapper> treeView) {
+    private CustomCheckBoxTreeCell(Callback<TreeItem<TreeAttributeWrapper>, ObservableValue<Boolean>> callback) {
         super(callback);
-        this.genericArchiveBrowserPresenter = genericArchiveBrowserPresenter;
-        this.treeView = treeView;
-        bindNodes();
     }
 
-    public static CustomCheckBoxTreeCell initCheckBoxTree(Callback<TreeItem<TreeAttributeWrapper>, ObservableValue<Boolean>> callback,
-                                                          GenericArchiveBrowserPresenter genericArchiveBrowserPresenter,
-                                                          TreeView<TreeAttributeWrapper> treeView) {
-        return new CustomCheckBoxTreeCell(callback, genericArchiveBrowserPresenter, treeView);
+    public static CustomCheckBoxTreeCell initCheckBoxTree(
+            Callback<TreeItem<TreeAttributeWrapper>, ObservableValue<Boolean>> callback) {
+        return new CustomCheckBoxTreeCell(callback);
     }
 
-    /**
-     * 동작이 일어날 때 노드와 트리를 그리는 메서드
-     */
     @Override
     public void updateItem(TreeAttributeWrapper item, boolean empty) {
         super.updateItem(item, empty);
@@ -60,21 +41,13 @@ public class CustomCheckBoxTreeCell extends CheckBoxTreeCell<TreeAttributeWrappe
 
         setText(getDisplayText(item));
 
-        if (item.shouldHaveCheckBox() && item.isTransferable(item.getDatabaseAttribute())) {
-            CheckBox checkBox = new CheckBox();
-
-            // 중복 바인딩 방지
-            checkBox.selectedProperty().unbindBidirectional(item.selectedProperty());
-            checkBox.selectedProperty().bindBidirectional(item.selectedProperty());
-
-            checkBox.selectedProperty().addListener((observable, wasSelected, isNowSelected) -> {
-                updateTotalSelectedSize();
-            });
-            setGraphic(checkBox);
-        } else {
+        if (!hasCheckBox(item)) {
             setGraphic(null);
         }
+    }
 
+    private boolean hasCheckBox(TreeAttributeWrapper item) {
+        return item.shouldHaveCheckBox() && item.isTransferable(item.getDatabaseAttribute());
     }
 
     /**
@@ -93,65 +66,4 @@ public class CustomCheckBoxTreeCell extends CheckBoxTreeCell<TreeAttributeWrappe
         String formatted = item.getFormattedSize();
         return formatted == null || formatted.isBlank() ? null : " (" + item.getFormattedSize() + ")";
     }
-
-    /**
-     * 스키마 - 테이블 간 노드 상태 전파
-     * 스키마에 이벤트 리스너를 붙여 스키마가 선택되면 전체 테이블이 선택. 
-     * 테이블만 단독 선택도 가능
-     */
-    private void bindNodes() {
-        TreeItem<TreeAttributeWrapper> root = treeView.getRoot();
-        findChildrenTreeItemList(root,
-                new ArrayList<>(),
-                TreeAttributeWrapper.DatabaseAttribute.SCHEMA)
-                .forEach(this::bindParentToChildren);
-    }
-
-    // schema -> table
-    private void bindParentToChildren(TreeItem<TreeAttributeWrapper> parent) {
-        if (parent == null) return;
-        Optional.ofNullable(parent.getValue())
-                .filter(TreeAttributeWrapper::isSchemaAttr)
-                .ifPresent(parentTreeAttribute -> {
-                            List<TreeItem<TreeAttributeWrapper>> children = findChildrenTreeItemList(parent, new ArrayList<>(), TABLE);
-                            parentTreeAttribute.selectedProperty().addListener((observable, wasSelected, isNowSelected) -> {
-                                // Update all children when parent changes
-                                children.forEach(child -> {
-                                    TreeAttributeWrapper childAttribute = child.getValue();
-                                    if (childAttribute != null) {
-                                        childAttribute.setSelected(isNowSelected);
-                                    }
-                                });
-                            });
-                        }
-                );
-    }
-
-    private void updateTotalSelectedSize() {
-        long totalSize = calculateTotalSize(getTreeView().getRoot());
-        updateTotalSizeLabel(totalSize);
-        selectedTotalSize = totalSize;
-    }
-
-    private long calculateTotalSize(TreeItem<TreeAttributeWrapper> root) {
-        long totalSize = 0;
-
-        if (root == null || root.getChildren().isEmpty()) {
-            return totalSize;
-        }
-
-        for (TreeItem<TreeAttributeWrapper> child : root.getChildren()) {
-            TreeAttributeWrapper value = child.getValue();
-            if (value != null && value.isTransferable() && value.isSelected()) {
-                totalSize += value.getSize();
-            }
-            totalSize += calculateTotalSize(child);
-        }
-        return totalSize;
-    }
-
-    private void updateTotalSizeLabel(long totalSize) {
-        genericArchiveBrowserPresenter.getTotalSizeLabel().setText(ByteFormatter.convertToBestFitUnit(totalSize));
-    }
-
 }

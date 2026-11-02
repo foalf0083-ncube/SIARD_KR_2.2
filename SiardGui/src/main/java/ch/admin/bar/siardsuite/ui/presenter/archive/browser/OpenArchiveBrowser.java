@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive.browser;
 
 import ch.admin.bar.siard2.api.Archive;
@@ -40,7 +41,9 @@ public class OpenArchiveBrowser {
                 .build();
 
         val buttonsBox = new ButtonBox().make(OPEN_PREVIEW);
-        buttonsBox.cancel().setOnAction(event -> dialogs.open(
+        // 「재현」도 화면을 떠난다. 검사 없이 나가면 편집이 사라진다.
+        buttonsBox.cancel().setOnAction(event -> this.loadedView.getController().runIfNoUnsavedChanges(
+                () -> dialogs.open(
                 View.RECENT_CONNECTIONS_FOR_UPLOAD,
                 optionalRecentDbConnection -> OptionalHelper.when(optionalRecentDbConnection)
                         .isPresent(recentDbConnection -> navigator.navigate(
@@ -53,14 +56,19 @@ public class OpenArchiveBrowser {
                                 View.UPLOAD_STEPPER,
                                 archive))
 
-        ));
+        )));
         buttonsBox.previous().setOnAction(event -> dialogs.open(
                 View.EXPORT_SELECT_TABLES,
                 archive
         ));
         buttonsBox.next().setOnAction(event -> {
-            archiveHandler.save(archive, archive.getFile());
-            navigator.navigate(View.START);
+            // 저장하지 않은 편집이 있으면 먼저 확인한다.
+            // 이 경로에는 검사가 없어 편집 내용이 경고 없이 사라졌다.
+            final GenericArchiveBrowserPresenter presenter = this.loadedView.getController();
+            presenter.runIfNoUnsavedChanges(() -> {
+                archiveHandler.save(archive, archive.getFile());
+                navigator.navigate(View.START);
+            });
         });
 
         this.loadedView = GenericArchiveBrowserPresenter.load(

@@ -1,10 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md. -->
 <!DOCTYPE configuration>
 
 <configuration>
     <property name="LOG_FILE" value="${user.home}/SIARD-Suite/siardcmd.log"/>
 
+    <!-- 터미널에는 INFO 이상만 보낸다. DEBUG 는 아래 파일에만 남긴다.
+         DEBUG 줄이 전체의 8할이라 터미널에 함께 흘리면 진행과 오류가 묻히고, Windows 콘솔 출력이
+         느려 추출 자체를 늦춘다. -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
         <layout class="ch.qos.logback.classic.PatternLayout">
             <pattern>
                 %black(%d{ISO8601}) %highlight(%-5level) [%blue(%thread)] %yellow(%logger{36}) %msg%n%throwable

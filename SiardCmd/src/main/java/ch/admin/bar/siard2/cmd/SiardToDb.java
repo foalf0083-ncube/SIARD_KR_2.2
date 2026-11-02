@@ -1,5 +1,7 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.cmd;
 
+import ch.admin.bar.siard2.cmd.utils.CmdI18n;
 import ch.admin.bar.siard2.api.Archive;
 import ch.admin.bar.siard2.api.MetaData;
 import ch.admin.bar.siard2.api.MetaSchema;
@@ -64,33 +66,33 @@ public class SiardToDb
 
 
   private void printUsage() {
-    System.out.println("Usage:");
-    System.out.println("java -cp <siardpath>/lib/siardcmd.jar ch.admin.bar.siard2.cmd.SiardToDb [-h]");
-    System.out.println("  [-o][-q=<query timeout>][-l=<login timeout>]");
-    System.out.println("  -s=<siard file> -j=<JDBC URL> -u=<database user> -p=<database password>");
-    System.out.println("  [<schema> <mappedschema>]*");
-    System.out.println("where");
-    System.out.println("  <siardpath>         installation path of SiardCmd");
-    System.out.println("  -h (help)           prints this usage information");
-    System.out.println("  -o                  overwrite existing database objects");
-    System.out.println("  <login timeout>     login timeout in seconds (default: " + this._iLoginTimeoutSeconds + ")");
-    System.out.println("  <query timeout>     query timeout in seconds (default: " + this._iQueryTimeoutSeconds + ")");
-    System.out.println("  <JDBC URL>          JDBC URL of database to be uploaded");
+    System.out.println(CmdI18n.get("cmd.common.usage"));
+    System.out.println(CmdI18n.get("cmd.toDb.javaCpSiardpathLibSiardcmdJar"));
+    System.out.println(CmdI18n.get("cmd.toDb.oQQueryTimeoutLLogin"));
+    System.out.println(CmdI18n.get("cmd.toDb.sSiardFileJJdbcUrl"));
+    System.out.println(CmdI18n.get("cmd.toDb.schemaMappedschema"));
+    System.out.println(CmdI18n.get("cmd.common.where"));
+    System.out.println(CmdI18n.get("cmd.toDb.siardpathInstallationPathOfSiardcmd"));
+    System.out.println(CmdI18n.get("cmd.toDb.hHelpPrintsThisUsageInformation"));
+    System.out.println(CmdI18n.get("cmd.toDb.oOverwriteExistingDatabaseObjects"));
+    System.out.println(CmdI18n.get("cmd.toDb.loginTimeoutLoginTimeoutInSeconds", this._iLoginTimeoutSeconds));
+    System.out.println(CmdI18n.get("cmd.toDb.queryTimeoutQueryTimeoutInSeconds", this._iQueryTimeoutSeconds));
+    System.out.println(CmdI18n.get("cmd.toDb.jdbcUrlJdbcUrlOfDatabase"));
     System.out.print("                      e.g. ");
     SiardConnection sc = SiardConnection.getSiardConnection();
     String[] asSchemes = sc.getSchemes();
     for (int i = 0; i < asSchemes.length; i++) {
       
       if (i > 0)
-        System.out.println("                           "); 
+        System.out.println(CmdI18n.get("cmd.common.msg")); 
       String sScheme = asSchemes[i];
-      System.out.println("for " + sc.getTitle(sScheme) + ": " + sc.getSampleUrl(sScheme, "dbserver.enterag.ch", "D:\\dbfolder", "testdb"));
+      System.out.println(CmdI18n.get("cmd.common.for", sc.getTitle(sScheme), sc.getSampleUrl(sScheme, "dbserver.enterag.ch", "D:\\dbfolder", "testdb")));
     } 
-    System.out.println("  <database user>     database user");
-    System.out.println("  <database password> database password");
-    System.out.println("  <siard file>        name of .siard file (will be overwritten. if it exists!)");
-    System.out.println("  <schema>            schema name in SIARD file");
-    System.out.println("  <mappedschema>      schema name to be used in database");
+    System.out.println(CmdI18n.get("cmd.toDb.databaseUserDatabaseUser"));
+    System.out.println(CmdI18n.get("cmd.toDb.databasePasswordDatabasePassword"));
+    System.out.println(CmdI18n.get("cmd.toDb.siardFileNameOfSiardFile"));
+    System.out.println(CmdI18n.get("cmd.toDb.schemaSchemaNameInSiardFile"));
+    System.out.println(CmdI18n.get("cmd.toDb.mappedschemaSchemaNameToBeUsed"));
   }
 
 
@@ -133,7 +135,7 @@ public class SiardToDb
           this._iLoginTimeoutSeconds = Integer.parseInt(sLoginTimeoutSeconds);
         } catch (NumberFormatException nfe) {
           
-          System.err.println("Invalid login timeout: " + sLoginTimeoutSeconds + "!");
+          System.err.println(CmdI18n.get("cmd.common.invalidLoginTimeout", sLoginTimeoutSeconds));
           this._iReturn = 8;
         } 
       }
@@ -142,7 +144,7 @@ public class SiardToDb
           this._iQueryTimeoutSeconds = Integer.parseInt(sQueryTimeoutSeconds);
         } catch (NumberFormatException nfe) {
           
-          System.err.println("Invalid query timeout: " + sQueryTimeoutSeconds + "!");
+          System.err.println(CmdI18n.get("cmd.common.invalidQueryTimeout", sQueryTimeoutSeconds));
           this._iReturn = 8;
         } 
       }
@@ -154,24 +156,24 @@ public class SiardToDb
       } 
       if (this._sDatabaseUser == null) {
         
-        System.err.println("Database user must be given!");
+        System.err.println(CmdI18n.get("cmd.common.databaseUserMustBeGiven"));
         this._iReturn = 8;
       } 
       if (this._sDatabasePassword == null) {
         
-        System.err.println("Database password must be given!");
+        System.err.println(CmdI18n.get("cmd.common.databasePasswordMustBeGiven"));
         this._iReturn = 8;
       } 
       if (sSiardFile != null) {
         this._fileSiard = new File(sSiardFile);
       } else {
         
-        System.err.println("SIARD file must be given!");
+        System.err.println(CmdI18n.get("cmd.toDb.siardFileMustBeGiven"));
         this._iReturn = 8;
       } 
       if (args.getArguments() % 2 != 0) {
         
-        System.err.println("Dangling schema name on command line!");
+        System.err.println(CmdI18n.get("cmd.toDb.danglingSchemaNameOnCommandLine"));
         this._iReturn = 8;
       } 
     } 
@@ -236,7 +238,7 @@ public class SiardToDb
         this._conn = siardConnection.createValidConnection(this._sJdbcUrl, this._sDatabaseUser, this._sDatabasePassword);
         if (this._conn != null && !this._conn.isClosed()) {
           
-          System.out.println("Connected to " + this._conn.getMetaData().getURL());
+          System.out.println(CmdI18n.get("cmd.common.connectedTo", this._conn.getMetaData().getURL()));
           this._conn.setAutoCommit(false);
           
           MetaData md = this._archive.getMetaData();
@@ -256,7 +258,7 @@ public class SiardToDb
                 String message = "Target database does not support UDTs. UDTs will be \"flattened\".";
                 
                 LOG.info("Target database does not support UDTs. UDTs will be \"flattened\".");
-                System.out.println("Target database does not support UDTs. UDTs will be \"flattened\".");
+                System.out.println(CmdI18n.get("cmd.toDb.targetDatabaseDoesNotSupportUdts"));
               } 
             } 
             mdtd.upload(null);
@@ -268,18 +270,18 @@ public class SiardToDb
           }
           else {
             
-            System.err.println("Database objects exist which would be overwritten on upload!");
-            System.err.println("Backup and delete them first or use -o option for overwriting them.");
+            System.err.println(CmdI18n.get("cmd.toDb.databaseObjectsExistWhichWouldBe"));
+            System.err.println(CmdI18n.get("cmd.toDb.backupAndDeleteThemFirstOr"));
             this._iReturn = 4;
           } 
           
           this._conn.close();
         } else {
           
-          System.err.println("Connection to " + this._conn.getMetaData().getURL() + " failed!");
+          System.err.println(CmdI18n.get("cmd.common.connectionToFailed", this._conn.getMetaData().getURL()));
         } 
       } else {
-        System.err.println("Connection to " + this._sJdbcUrl + " not supported (" + sError + ")!");
+        System.err.println(CmdI18n.get("cmd.common.connectionToNotSupported", this._sJdbcUrl, sError));
       }  this._archive.close();
     } 
   }
@@ -322,9 +324,3 @@ public class SiardToDb
     System.exit(iReturn);
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\SIARD_KR_2.2\lib\siardcmd.jar!\ch\admin\bar\siard2\cmd\SiardToDb.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

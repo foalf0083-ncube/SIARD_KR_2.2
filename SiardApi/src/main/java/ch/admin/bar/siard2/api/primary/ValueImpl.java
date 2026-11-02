@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.api.primary;
 
 import ch.admin.bar.siard2.api.*;
@@ -26,6 +27,12 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 public abstract class ValueImpl implements Value {
+    /**
+     * 대용량 객체 하나마다 한 줄이 나온다. 화면으로 흘려보내면 나머지가 모두 밀려나므로 기록 파일에만 남긴다.
+     * 실측(2026-09-09): 41 테이블 · 14.5만 행 추출 한 번에 34,906줄로, 전체 출력의 98.6 퍼센트였다.
+     */
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(ValueImpl.class);
+
     private static final String _sSEQUENCE_PREFIX = "seq";
     private static final DU _du = DU.getInstance("en", "yyyy-MM-dd HH:mm:ss.S");
     private static final String _sRECORD_PREFIX = "record";
@@ -87,8 +94,14 @@ public abstract class ValueImpl implements Value {
     }
 
 
+    /** extendArray 가 0 번부터 빠짐없이 있음을 이미 확인한 원소 수. 필드는 지워지지 않으므로 다시 볼 필요가 없다. */
+    private int _iArrayExtent = 0;
+
     protected void extendArray(int iSize, int iCardinality) throws IOException {
-        for (int iField = 0; iField < iSize; iField++) {
+        // 원소 하나를 붙일 때마다 0 번부터 다시 확인하면 원소 N 개에 N^2 번 조회가 든다.
+        // 확인한 범위는 건너뛴다. 확인과 채우기는 원래와 같다(읽은 파일처럼 중간이 빈 배열도 채운다).
+        int iStart = Math.min(this._iArrayExtent, iSize);
+        for (int iField = iStart; iField < iSize; iField++) {
 
             String sTag = getElementTag(iField);
             Field field = getFieldMap().get(sTag);
@@ -98,6 +111,8 @@ public abstract class ValueImpl implements Value {
                 getFieldMap().put(sTag, createField(iField, mfNull, null));
             }
         }
+        if (iSize > this._iArrayExtent)
+            this._iArrayExtent = iSize;
     }
 
 
@@ -272,7 +287,19 @@ public abstract class ValueImpl implements Value {
             }
             int iCardinality = getCardinality();
             MetaType mt = getMetaType();
-            for (int iField = 0; iField < getMetaFields(); iField++) {
+            // 배열이면 이 값이 가진 원소 중 가장 큰 번호까지만 돈다. 메타데이터의 필드 수는 지금까지 본 가장 큰 배열
+            // 크기라 그만큼 돌면 큰 도형 하나 뒤로 모든 행이 느려진다. 없는 원소는 원래도 건너뛰었으므로 결과는 같다.
+            int iFields = getMetaFields();
+            if (iCardinality >= 0) {
+                int iPresent = 0;
+                for (String sKey : getFieldMap().keySet()) {
+                    int iIndex = getIndex(sKey) + 1;
+                    if (iIndex > iPresent)
+                        iPresent = iIndex;
+                }
+                iFields = Math.min(iFields, iPresent);
+            }
+            for (int iField = 0; iField < iFields; iField++) {
 
                 String sTag = getTag(mt, iCardinality, iField);
                 Field field = getFieldMap().get(sTag);
@@ -857,45 +884,34 @@ public abstract class ValueImpl implements Value {
 
     public void setReader(Reader reader) throws IOException {
         int iPreType = getPreType();
-        if (iPreType == 1 || iPreType == 12 || iPreType == 2005 || iPreType == -15 || iPreType == -9 || iPreType == 2011 || iPreType == 2009 || iPreType == 70) {
-
-
-            int iMaxInlineSize = getArchiveImpl().getMaxInlineSize();
-
-            char[] bufferPrefix = new char[iMaxInlineSize + 1];
-            int iOffset = 0;
-            int iRead = -1;
-            iRead = reader.read(bufferPrefix);
-            for (; iOffset < bufferPrefix.length && iRead != -1;
-                 iRead = reader.read(bufferPrefix, iOffset, bufferPrefix.length - iOffset)) {
-                iOffset += iRead;
+        try (Reader ownedReader = reader) {
+            if (iPreType == 1 || iPreType == 12 || iPreType == 2005 || iPreType == -15 || iPreType == -9 || iPreType == 2011 || iPreType == 2009 || iPreType == 70) {
+                URI externalLobFolder = getAbsoluteLobFolder();
+                // Preserve the original SIARD Suite/KR representation: reader
+                // values, including short and empty CLOB/NCLOBs, use LOB files.
+                // Direct ZIP storage changes the write path, not this policy.
+                RecordRetainerImpl streaming = getStreamingLobWriter();
+                char[] buffer = null;
+                try (Writer writer = new ValidatingWriter(getValueElement(),
+                        openLobOutputStream(externalLobFolder))) {
+                    buffer = streaming == null ? new char[8192] : streaming.borrowLobChars();
+                    for (int n; (n = ownedReader.read(buffer)) != -1;) {
+                        if (n == 0) {
+                            int c = ownedReader.read();
+                            if (c == -1) break;
+                            writer.write(c);
+                        } else writer.write(buffer, 0, n);
+                    }
+                } finally {
+                    if (streaming != null && buffer != null) streaming.releaseLobChars(buffer);
+                }
+            } else {
+                if (iPreType != 0) {
+                    throw new IllegalArgumentException("Cell of type " + SqlTypes.getTypeName(iPreType) + " cannot be set using a reader!");
+                }
+                throw new IllegalArgumentException("Value of cell of complex type cannot be set using a reader!");
             }
-
-            String lobFilename = getLobFilename();
-            URI externalLobFolder = getAbsoluteLobFolder();
-
-            AbstractMap.SimpleEntry<File, String> lobFileAndLobFilename = getLobFileAndUpdateLobFilename(lobFilename, externalLobFolder);
-            File lobFile = lobFileAndLobFilename.getKey();
-            lobFilename = lobFileAndLobFilename.getValue();
-
-            OutputStream outputStream = new FileOutputStream(lobFile);
-            getValueElement().setAttribute("file", lobFilename);
-            Writer writer = new ValidatingWriter(getValueElement(), outputStream);
-            writer.write(bufferPrefix, 0, iOffset);
-            if (iRead != -1) {
-                char[] bufferTransfer = new char[8192];
-                for (iRead = reader.read(bufferTransfer); iRead != -1; iRead = reader.read(bufferTransfer))
-                    writer.write(bufferTransfer, 0, iRead);
-            }
-            writer.close();
-            reader.close();
-        } else {
-            if (iPreType != 0) {
-                throw new IllegalArgumentException("Cell of type " + SqlTypes.getTypeName(iPreType) + " cannot be set using a reader!");
-            }
-            throw new IllegalArgumentException("Value of cell of complex type cannot be set using a reader!");
         }
-
     }
 
 
@@ -1000,45 +1016,54 @@ public abstract class ValueImpl implements Value {
 
 
     public void setInputStream(InputStream inputStream) throws IOException {
-        if (getPreType() == -2 || getPreType() == -3 || getPreType() == 2004 || getPreType() == 70) {
-
-            int iMaxInlineSize = getArchiveImpl().getMaxInlineSize();
-
-            byte[] bufferPrefix = new byte[1 + iMaxInlineSize];
-            int iOffset = 0;
-            int iRead = -1;
-            iRead = inputStream.read(bufferPrefix);
-            for (; iOffset < bufferPrefix.length && iRead != -1; iRead = inputStream.read(bufferPrefix, iOffset,bufferPrefix.length - iOffset)) {
-                iOffset += iRead;
-            }
-
-            String lobFilename = getLobFilename();
-            URI externalLobFolder = getAbsoluteLobFolder();
-
-            AbstractMap.SimpleEntry<File, String> lobFileAndLobFilename = getLobFileAndUpdateLobFilename(lobFilename, externalLobFolder);
-            File lobFile = lobFileAndLobFilename.getKey();
-            lobFilename = lobFileAndLobFilename.getValue();
-
-            OutputStream outputStream = Files.newOutputStream(lobFile.toPath());
-            getValueElement().setAttribute("file", lobFilename);
-            outputStream = new ValidatingOutputStream(getValueElement(), outputStream);
-            outputStream.write(bufferPrefix, 0, iOffset);
-
-            if (iRead != -1) {
-                byte[] bufferTransfer = new byte[8192];
-                for (iRead = inputStream.read(bufferTransfer); iRead != -1; iRead = inputStream.read(bufferTransfer)) {
-                    outputStream.write(bufferTransfer, 0, iRead);
+        try (InputStream ownedInput = inputStream) {
+            if (getPreType() == -2 || getPreType() == -3 || getPreType() == 2004 || getPreType() == 70) {
+                URI externalLobFolder = getAbsoluteLobFolder();
+                // Binary streams have always used file storage, including empty
+                // values. No inline-prefix probe is needed on this path.
+                RecordRetainerImpl streaming = getStreamingLobWriter();
+                byte[] buffer = null;
+                try (OutputStream output = new ValidatingOutputStream(getValueElement(),
+                        openLobOutputStream(externalLobFolder))) {
+                    buffer = streaming == null ? new byte[8192] : streaming.borrowLobBytes();
+                    for (int n; (n = ownedInput.read(buffer)) != -1;) {
+                        if (n == 0) {
+                            int b = ownedInput.read();
+                            if (b == -1) break;
+                            output.write(b);
+                        } else output.write(buffer, 0, n);
+                    }
+                } finally {
+                    if (streaming != null && buffer != null) streaming.releaseLobBytes(buffer);
                 }
+            } else {
+                if (getPreType() != 0) {
+                    throw new IllegalArgumentException("Cell of type " + SqlTypes.getTypeName(getPreType()) + " cannot be set using an input stream!");
+                }
+                throw new IllegalArgumentException("Value of cell of complex type cannot be set using an input stream!");
             }
-            outputStream.close();
-            inputStream.close();
-        } else {
-            if (getPreType() != 0) {
-                throw new IllegalArgumentException("Cell of type " + SqlTypes.getTypeName(getPreType()) + " cannot be set using an input stream!");
-            }
-
-            throw new IllegalArgumentException("Value of cell of complex type cannot be set using an input stream!");
         }
+    }
+
+    private OutputStream openLobOutputStream(URI externalLobFolder) throws IOException {
+        String filename = getLobFilename();
+        RecordRetainerImpl streaming = getStreamingLobWriter();
+        OutputStream output;
+        if (externalLobFolder == null && streaming != null) {
+            String folder = getTableImpl().getTableFolder() + getInternalLobFolder();
+            output = streaming.openLob(folder, filename);
+            filename = folder + filename;
+        } else {
+            AbstractMap.SimpleEntry<File, String> file = getLobFileAndUpdateLobFilename(filename, externalLobFolder);
+            output = Files.newOutputStream(file.getKey().toPath());
+            filename = file.getValue();
+        }
+        getValueElement().setAttribute("file", filename);
+        return output;
+    }
+
+    private RecordRetainerImpl getStreamingLobWriter() {
+        return ((RecordImpl)getAncestorCell().getParentRecord()).getStreamingLobWriter();
     }
 
     private AbstractMap.SimpleEntry<File, String> getLobFileAndUpdateLobFilename(String lobFilename, URI externalLobFolderUri) throws IOException {
@@ -1063,9 +1088,9 @@ public abstract class ValueImpl implements Value {
         // LOB 파일의 부모 디렉토리 생성 (임시 폴더 내)
         if (!lobFile.getParentFile().exists()) {
             boolean created = lobFile.getParentFile().mkdirs();
-            System.out.println("DEBUG: LOB 폴더 생성 시도: " + lobFile.getParentFile().getAbsolutePath() + " -> " + created);
+            LOG.debug("LOB 폴더 생성 시도: {} -> {}", lobFile.getParentFile().getAbsolutePath(), Boolean.valueOf(created));
         }
-        System.out.println("DEBUG: LOB 파일 경로: " + lobFile.getAbsolutePath() + ", XML 참조: " + lobFilename);
+        LOG.debug("LOB 파일 경로: {}, XML 참조: {}", lobFile.getAbsolutePath(), lobFilename);
         return new AbstractMap.SimpleEntry<>(lobFile, lobFilename);
     }
 
@@ -1246,9 +1271,3 @@ public abstract class ValueImpl implements Value {
         }
     }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siardapi.jar!\ch\admin\bar\siard2\api\primary\ValueImpl.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

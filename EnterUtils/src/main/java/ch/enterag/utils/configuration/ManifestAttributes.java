@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.enterag.utils.configuration;
 
 import ch.enterag.utils.io.SpecialFolder;
@@ -209,9 +210,3 @@ public class ManifestAttributes
     return getInstance(ManifestAttributes.class);
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siard-lib\lib\enterutils.jar!\ch\entera\\utils\configuration\ManifestAttributes.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

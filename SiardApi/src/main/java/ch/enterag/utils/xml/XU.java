@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.enterag.utils.xml;
 
 import ch.enterag.utils.BU;
@@ -113,7 +114,32 @@ public class XU
 
 
   
+  /*
+   * 메타데이터의 형식·스키마 이름처럼 같은 짧은 문자열이 자료를 쓰는 동안 값 하나마다 되풀이해 복원된다.
+   * 공간 자료형의 좌표 배열은 원소마다 이 경로를 타서 추출 시간의 절반 이상을 여기서 썼다.
+   * 복원은 입력만으로 정해지므로 짧은 문자열의 결과를 기억해 둔다.
+   */
+  private static final int FROM_XML_CACHE_MAX_LENGTH = 256;
+  private static final int FROM_XML_CACHE_MAX_ENTRIES = 4096;
+  private static final java.util.concurrent.ConcurrentHashMap<String, String> _mapFromXml =
+      new java.util.concurrent.ConcurrentHashMap<String, String>();
+
   public static String fromXml(String sText) {
+    if (sText == null || sText.length() > FROM_XML_CACHE_MAX_LENGTH)
+      return fromXmlUncached(sText);
+    String sResult = _mapFromXml.get(sText);
+    if (sResult == null) {
+      sResult = fromXmlUncached(sText);
+      if (sResult != null) {
+        if (_mapFromXml.size() >= FROM_XML_CACHE_MAX_ENTRIES)
+          _mapFromXml.clear();
+        _mapFromXml.put(sText, sResult);
+      }
+    }
+    return sResult;
+  }
+
+  private static String fromXmlUncached(String sText) {
     if (SU.isNotEmpty(sText)) {
       
       StringBuffer sb = new StringBuffer();
@@ -198,9 +224,3 @@ public class XU
     } 
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siardapi.jar!\ch\entera\\utils\xml\XU.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

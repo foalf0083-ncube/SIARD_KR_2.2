@@ -1,0 +1,2 @@
+# Compression-boundary fixture: preserve its exact bytes on every platform.
+Zip64/src/test/resources/complex_clob_boundary.txt -text

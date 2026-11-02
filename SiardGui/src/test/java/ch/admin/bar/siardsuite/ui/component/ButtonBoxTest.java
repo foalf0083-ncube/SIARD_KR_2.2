@@ -1,6 +1,9 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.component;
 
+import ch.admin.bar.siardsuite.util.I18n;
 import org.junit.Before;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.testfx.framework.junit5.ApplicationExtension;
@@ -11,8 +14,19 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import java.util.Locale;
+
 @ExtendWith(ApplicationExtension.class)
 public class ButtonBoxTest {
+
+    /**
+     * 이 시험은 영문 라벨을 기대한다. 로케일을 고정하지 않으면 장비의 기본 로케일을
+     * 따라가는데, 한국어가 언어로 추가된 뒤로 한국어 장비에서만 깨졌다.
+     */
+    @BeforeAll
+    static void useEnglishLabels() {
+        I18n.setLocale(Locale.ENGLISH);
+    }
 
     @Before
     public void setUpHeadlessMode() {

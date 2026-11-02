@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.api.primary;
 
 import ch.admin.bar.siard2.api.*;
@@ -147,6 +148,12 @@ public class ArchiveImpl implements Archive {
 
     public InputStream openFileEntry(String sEntryName) throws IOException {
         return this.getZipFile().openEntryInputStream(sEntryName);
+    }
+
+    void appendDeflatedFileEntry(String name, java.nio.file.Path spool, long size, long crc) throws IOException {
+        try (InputStream input = java.nio.file.Files.newInputStream(spool)) {
+            getZipFile().appendDeflatedEntry(name, new Date(), input, java.nio.file.Files.size(spool), size, crc);
+        }
     }
 
     public OutputStream createFileEntry(String sEntryName) throws IOException {
@@ -418,6 +425,9 @@ public class ArchiveImpl implements Archive {
 
     public void close() throws IOException {
         if (this.getZipFile() != null) {
+            // Finalization can fail while hashing or exporting metadata. Always
+            // release the ZIP file and spool, preserving the original failure.
+            try (java.io.Closeable zipClose = this.getZipFile()::close) {
             if (this.canModifyPrimaryData()) {
                 MetaDataImpl mdi = (MetaDataImpl) this.getMetaData();
                 mdi.setMessageDigest(this.getMessageDigest(_dttDEFAULT_DIGEST_ALGORITHM));
@@ -431,8 +441,9 @@ public class ArchiveImpl implements Archive {
             }
 
             this.saveMetaData();
-            this.getZipFile().close();
-            this.reset();
+            } finally {
+                this.reset();
+            }
         } else {
             throw new IOException("Archive was not open!");
         }

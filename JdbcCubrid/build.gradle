@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 plugins {
     id 'java'
 }
@@ -16,8 +17,7 @@ dependencies {
     compileOnly 'org.projectlombok:lombok:1.18.34'
     annotationProcessor 'org.projectlombok:lombok:1.18.34'
 
-    implementation fileTree(include: ['*.jar'], dir: "$rootDir/lib")
-
+    implementation fileTree(include: ['*.jar'], exclude: ['jfxrt.jar', 'zip64.jar'], dir: "$rootDir/lib")
     implementation project(':Cubrid')
     implementation project(':EnterUtils')
     implementation project(":JdbcBase")

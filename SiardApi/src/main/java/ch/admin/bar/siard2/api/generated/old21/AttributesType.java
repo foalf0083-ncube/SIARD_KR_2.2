@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.api.generated.old21;
 
 import java.util.ArrayList;
@@ -75,9 +76,3 @@ public class AttributesType
     return this.attribute;
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siardapi.jar!\ch\admin\bar\siard2\api\generated\old21\AttributesType.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

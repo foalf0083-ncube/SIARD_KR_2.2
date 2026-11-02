@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.cmd;
 
 import ch.admin.bar.siard2.api.MetaData;
@@ -5,14 +6,12 @@ import ch.admin.bar.siard2.cmd.utils.db.AbstractSkippableDb;
 import ch.enterag.sqlparser.identifier.QualifiedId;
 import ch.enterag.utils.jdbc.BaseDatabaseMetaData;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
 import java.sql.*;
 import java.text.ParseException;
 import java.util.*;
 
 import static ch.admin.bar.dbexception.DatabaseExceptionHandlerHelper.doHandleSqlException;
-import static ch.admin.bar.siard2.cmd.MetaDataBase.DataBase.isTibero;
 
 public abstract class MetaDataBase extends AbstractSkippableDb {
 
@@ -76,9 +75,23 @@ public abstract class MetaDataBase extends AbstractSkippableDb {
     }
 
     protected MetaDataBase(DatabaseMetaData dmd, MetaData md) throws SQLException {
+        this(dmd, md, true);
+    }
+
+    /**
+     * @param bDetectTypeSupport 형식 지원 여부(UDT·DISTINCT)를 미리 잴지. 이 값은 재현(MetaDataToDb)에서만 쓰인다.
+     *                           재려면 DB 의 모든 컬럼을 한 번 훑어야 해 테이블이 많으면 수십 초에서 수 분이 걸리므로
+     *                           추출(MetaDataFromDb)은 재지 않는다.
+     */
+    protected MetaDataBase(DatabaseMetaData dmd, MetaData md, boolean bDetectTypeSupport) throws SQLException {
         super(dmd.getDatabaseProductName());
         this._dmd = dmd;
         this._md = md;
+        if (bDetectTypeSupport) detectTypeSupport();
+        detectArraySupport();
+    }
+
+    private void detectTypeSupport() throws SQLException {
         ResultSet rs = this._dmd.getUDTs(null, "%", "%", null);
 
         while (rs.next() && (!this._bSupportsUdts || !this._bSupportsDistincts)) {
@@ -96,13 +109,14 @@ public abstract class MetaDataBase extends AbstractSkippableDb {
         }
 
         rs.close();
+    }
 
+    private void detectArraySupport() throws SQLException {
         String databaseProductName = null;
         try {
             Connection connection = this._dmd.getConnection();
             databaseProductName = connection.getMetaData().getDatabaseProductName();
-            // tibero 인 경우 분기
-            String typeName = isTibero(databaseProductName) ? "INTEGER_OBJ" : "INTEGER";
+            String typeName = "INTEGER";
             Array array = connection.createArrayOf(typeName, new Integer[]{1, 2});
             array.free();
             this._bSupportsArrays = true;
@@ -114,43 +128,49 @@ public abstract class MetaDataBase extends AbstractSkippableDb {
     }
 
     @Getter
-    @RequiredArgsConstructor
     public enum DataBase {
-        MYSQL("mysql"),
-        ORACLE("oracle"),
-        POSTGRESQL("postgresql"),
-        MSSQL("mssql"),
+        MYSQL("mysql", "mariadb"),          // MariaDB 는 MySQL 계열로 처리(JdbcMysql 래퍼·information_schema 공용)
+        ORACLE("oracle"),                    // "Oracle Database" 등은 findByName 의 contains(name) 로 매칭
+        POSTGRESQL("postgresql", "postgres"),
+        MSSQL("mssql", "microsoft sql server", "sql server"),
         CUBRID("cubrid"),
         TIBERO("tibero"),
+        // DB2 는 플랫폼을 붙인 이름을 보고한다(DB2/LINUXX8664, DB2/NT64 등) → contains 로 매칭
+        DB2("db2"),
 
         ;
 
         final String name;
+        final List<String> aliases;
 
-        public static DataBase findByName(String name) {
-            if (name.isBlank()) throw new NoSuchElementException("No enum value is found");
-            return Arrays.stream(DataBase.values())
-                    .filter(dataBase -> dataBase.getName().equalsIgnoreCase(name))
-                    .findFirst()
-                    .orElseThrow(() -> new NoSuchElementException("No value is found"));
+        DataBase(String name, String... aliases) {
+            this.name = name;
+            this.aliases = Arrays.asList(aliases);
         }
 
-        public static boolean isTibero(String databaseProductName) {
-            if (databaseProductName.isBlank()) throw new NoSuchElementException("No enum value is found");
+        public static DataBase findByName(String name) {
+            if (name == null || name.isBlank()) throw new NoSuchElementException("No enum value is found");
+            String lower = name.toLowerCase();
             return Arrays.stream(DataBase.values())
-                    .anyMatch(database -> DataBase.TIBERO.getName().equalsIgnoreCase(databaseProductName));
+                    .filter(dataBase -> dataBase.getName().equalsIgnoreCase(name)
+                            || lower.contains(dataBase.getName())
+                            || dataBase.getAliases().stream().anyMatch(lower::contains))
+                    .findFirst()
+                    .orElseThrow(() -> new NoSuchElementException("No enum value is found for: " + name));
         }
 
         public static boolean isCubrid(String databaseProductName){
-            if (databaseProductName.isBlank()) throw new NoSuchElementException("No enum value is found");
-            return Arrays.stream(DataBase.values())
-                    .anyMatch(database -> DataBase.CUBRID.getName().equalsIgnoreCase(databaseProductName));
+            return DataBase.CUBRID.equals(findByName(databaseProductName));
+        }
+
+        public static boolean isMySqlFamily(String databaseProductName) {
+            return DataBase.MYSQL.equals(findByName(databaseProductName));
         }
 
     }
 
     protected String getPatternedName(String name) throws SQLException {
-        return isTiberoDb() ?
+        return isCubridDb() ?
                 name :
                 ((BaseDatabaseMetaData) this._dmd).toPattern(name);
     }

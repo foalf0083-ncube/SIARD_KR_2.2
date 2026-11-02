@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.api.generated;
 
 import javax.xml.bind.annotation.XmlEnum;
@@ -33,6 +34,7 @@ import javax.xml.bind.annotation.XmlType;
 @XmlEnum
 public enum CategoryType
 {
+  @javax.xml.bind.annotation.XmlEnumValue("distinct")
   DISTINCT("distinct"),
 
   @javax.xml.bind.annotation.XmlEnumValue("udt")
@@ -57,9 +59,3 @@ public enum CategoryType
     throw new IllegalArgumentException(v);
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siardapi.jar!\ch\admin\bar\siard2\api\generated\CategoryType.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

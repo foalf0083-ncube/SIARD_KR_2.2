@@ -1,10 +1,9 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.service;
 
-import ch.admin.bar.siardsuite.SiardApplication;
 import ch.admin.bar.siardsuite.util.I18n;
 import ch.admin.bar.siardsuite.util.OS;
 import ch.admin.bar.siardsuite.util.ResourcesResolver;
-import com.sun.deploy.uitoolkit.impl.fx.HostServicesFactory;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
@@ -59,8 +58,20 @@ public class FilesService {
             }
         }
 
-        val hostServices = HostServicesFactory.getInstance(new SiardApplication());
-        hostServices.showDocument(file.toURI().toString());
+        try {
+            if (OS.IS_WINDOWS) {
+                Runtime.getRuntime().exec(new String[]{
+                        "rundll32", "url.dll,FileProtocolHandler", file.getAbsolutePath()});
+            } else if (OS.IS_MAC) {
+                Runtime.getRuntime().exec(new String[]{"open", file.getAbsolutePath()});
+            } else if (OS.IS_UNIX) {
+                Runtime.getRuntime().exec(new String[]{"xdg-open", file.getAbsolutePath()});
+            } else {
+                log.warn(String.format("Cannot open file %s: unsupported OS", file));
+            }
+        } catch (IOException e) {
+            log.warn(String.format("Failed to open file %s with the default application", file), e);
+        }
     }
 
     /**

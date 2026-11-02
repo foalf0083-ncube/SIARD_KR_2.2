@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.cmd.utils;
 
 import java.io.InputStream;
@@ -51,9 +52,3 @@ public class VersionsExplorer
     }
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\SIARD_KR_2.2\lib\siardcmd.jar!\ch\admin\bar\siard2\cm\\utils\VersionsExplorer.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

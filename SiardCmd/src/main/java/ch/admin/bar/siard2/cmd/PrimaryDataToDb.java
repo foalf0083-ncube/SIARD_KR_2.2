@@ -1,5 +1,7 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.cmd;
 
+import ch.admin.bar.siard2.cmd.utils.CmdI18n;
 import ch.admin.bar.siard2.api.Archive;
 import ch.admin.bar.siard2.api.Cell;
 import ch.admin.bar.siard2.api.Field;
@@ -17,7 +19,6 @@ import ch.admin.bar.siard2.api.Schema;
 import ch.admin.bar.siard2.api.Table;
 import ch.admin.bar.siard2.api.Value;
 import ch.admin.bar.siard2.api.generated.CategoryType;
-import ch.admin.bar.siard2.cmd.utils.tibero.TiberoConnectionAdapter;
 import ch.enterag.sqlparser.SqlLiterals;
 import ch.enterag.sqlparser.identifier.QualifiedId;
 import ch.enterag.utils.EU;
@@ -37,7 +38,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import com.tmax.tibero.jdbc.driver.TbRSUpdatable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,13 +130,23 @@ public class PrimaryDataToDb extends PrimaryDataTransfer {
 
                 MetaUniqueKey mck = mt.getMetaCandidateKey(iCandidateKey);
                 StringBuilder sbSql = new StringBuilder(sSql + " ADD CONSTRAINT " + mck.getName() + " UNIQUE(");
+                boolean bUnmappedColumn = false;
                 for (int iColumn = 0; iColumn < mck.getColumns(); iColumn++) {
 
                     if (iColumn > 0)
                         sbSql.append(",");
                     String sMappedColumnName = tm.getMappedColumnName(mck.getColumn(iColumn));
+                    if (sMappedColumnName == null) {
+                        // 보존물의 후보키가 테이블에 없는 컬럼을 가리킨다(식에 걸린 인덱스 등). 그 제약만 건너뛴다.
+                        LOG.warn("Candidate key '{}' of table '{}.{}' refers to unknown column '{}'. Skipping it.",
+                                mck.getName(), sm.getMappedSchemaName(), tm.getMappedTableName(), mck.getColumn(iColumn));
+                        bUnmappedColumn = true;
+                        break;
+                    }
                     sbSql.append(SqlLiterals.formatId(sMappedColumnName));
                 }
+                if (bUnmappedColumn)
+                    continue;
                 sbSql.append(")");
 
                 String sqlStatement = sbSql.toString();
@@ -174,6 +184,7 @@ public class PrimaryDataToDb extends PrimaryDataTransfer {
 
                 QualifiedId qiReferenced = new QualifiedId(null, smReferenced.getMappedSchemaName(), tmReferenced.getMappedTableName());
                 StringBuilder sbReferences = new StringBuilder(" REFERENCES " + qiReferenced.format() + "(");
+                boolean bUnmappedColumn = false;
                 for (int iReference = 0; iReference < mfk.getReferences(); iReference++) {
 
                     if (iReference > 0) {
@@ -181,9 +192,21 @@ public class PrimaryDataToDb extends PrimaryDataTransfer {
                         sbSql.append(", ");
                         sbReferences.append(", ");
                     }
-                    sbSql.append(tm.getMappedColumnName(mfk.getColumn(iReference)));
-                    sbReferences.append(tmReferenced.getMappedColumnName(mfk.getReferenced(iReference)));
+                    String sColumn = tm.getMappedColumnName(mfk.getColumn(iReference));
+                    String sReferenced = tmReferenced.getMappedColumnName(mfk.getReferenced(iReference));
+                    if (sColumn == null || sReferenced == null) {
+                        // 보존물의 외래키가 테이블에 없는 컬럼을 가리킨다. 그 제약만 건너뛴다.
+                        LOG.warn("Foreign key '{}' of table '{}.{}' refers to unknown column ('{}' -> '{}'). Skipping it.",
+                                mfk.getName(), sm.getMappedSchemaName(), tm.getMappedTableName(),
+                                mfk.getColumn(iReference), mfk.getReferenced(iReference));
+                        bUnmappedColumn = true;
+                        break;
+                    }
+                    sbSql.append(sColumn);
+                    sbReferences.append(sReferenced);
                 }
+                if (bUnmappedColumn)
+                    continue;
                 sbSql.append(")");
                 sbReferences.append(")");
                 sbSql.append(sbReferences);
@@ -379,6 +402,15 @@ public class PrimaryDataToDb extends PrimaryDataTransfer {
     }
 
 
+    /**
+     * 갱신 가능 결과집합의 삽입 행에 레코드 값을 채운다.
+     *
+     * <p>NULL 도 반드시 자리마다 지정한다. 종전에는 NULL 이면 그 칸을 건드리지 않고 넘어갔는데,
+     * {@code moveToInsertRow()} 가 앞 행에서 지정한 값을 지우지 않는 드라이버에서는 앞 행 값이 그대로
+     * 남아 NULL 자리에 들어간다. 조용히 값이 바뀌므로 오류도 나지 않는다.
+     * 실측(2026-09-29, Tibero 5 SP1): NULL 이던 VARCHAR · RAW 칸에 앞 행 값이 들어갔고
+     * NULL 이던 CLOB 은 빈 LOB 이 되었다.
+     */
     private void putRecord(Record record, ResultSet rs, Set<Object> setResources) throws IOException, SQLException {
         List<Value> listValues = record.getValues(supportsArrays(), supportsUdts());
         ResultSetMetaData rsmd = rs.getMetaData();
@@ -387,28 +419,62 @@ public class PrimaryDataToDb extends PrimaryDataTransfer {
         for (int iValue = 0; iValue < listValues.size(); iValue++) {
 
             Value value = listValues.get(iValue);
-            if (!value.isNull()) {
-
-                Object oValue = getValue(value, getConnectionAdapter(rs.getStatement().getConnection()), setResources);
+            if (value.isNull()) {
+                rs.updateNull(iValue + 1);
+            } else {
+                Object oValue = getValue(value, (BaseConnection) rs.getStatement().getConnection(), setResources);
                 rs.updateObject(iValue + 1, oValue);
             }
         }
     }
 
-    private BaseConnection getConnectionAdapter(Connection connection) {
-        return isTiberoDb() ? new TiberoConnectionAdapter(connection) : (BaseConnection) connection;
+
+    /**
+     * 갱신 가능 결과집합으로 행을 넣지 못할 때 {@code INSERT} 문 경로로 바꾼다.
+     *
+     * <p>기본키가 없는 테이블(구체화 뷰를 테이블로 보존한 것 등)은 드라이버가 결과집합 삽입을 거부한다.
+     * 종전에는 이 지점에서 재적재 전체가 멈췄다. 실패한 레코드는 아직 들어가지 않았으므로 같은 레코드부터
+     * 다시 넣는다. 바꾼 사유와 위치를 기록에 남긴다.
+     */
+    private PreparedStatement switchToInsertPath(Table table, SchemaMapping sm, ResultSet rs,
+            QualifiedId qiTable, long lRecord, SQLException se) throws IOException, SQLException {
+        try {
+            rs.moveToCurrentRow();
+        } catch (SQLException ignore) { /* 삽입 행에 서지 못한 경우 */ }
+        LOG.warn("Result set insert is not usable for table '{}' at record {}: {}. Falling back to INSERT statements.",
+                qiTable.format(), Long.valueOf(lRecord), EU.getExceptionMessage(se));
+        return prepareInsert(table, sm);
     }
 
+    /**
+     * {@code INSERT} 문에 레코드 값을 채운다. 결과집합 경로와 달리 NULL 도 자리마다 지정해야 하므로
+     * 조회 결과집합의 타입 정보를 쓴다.
+     */
+    private void putRecord(Record record, PreparedStatement ps, ResultSetMetaData rsmd,
+            BaseConnection conn, Set<Object> setResources) throws IOException, SQLException {
+        List<Value> listValues = record.getValues(supportsArrays(), supportsUdts());
+        if (rsmd.getColumnCount() != listValues.size())
+            throw new IOException("Invalid number of result columns found!");
+        for (int iValue = 0; iValue < listValues.size(); iValue++) {
+            Value value = listValues.get(iValue);
+            if (value.isNull()) {
+                ps.setNull(iValue + 1, rsmd.getColumnType(iValue + 1));
+            } else {
+                ps.setObject(iValue + 1, getValue(value, conn, setResources));
+            }
+        }
+    }
 
     private void putTable(Table table, SchemaMapping sm) throws IOException, SQLException {
         MetaTable mt = table.getMetaTable();
 
 
         QualifiedId qiTable = new QualifiedId(null, mt.getParentMetaSchema().getName(), mt.getName());
-        System.out.println("  Table: " + qiTable.format());
+        System.out.println(CmdI18n.get("cmd.common.table", qiTable.format()));
         RecordDispenser rd = table.openRecords();
         ResultSet rs = openTable(table, sm);
         Statement stmt = rs.getStatement();
+        PreparedStatement psInsert = null;   // 결과집합 삽입이 막힌 뒤 쓰는 대체 경로
         Set<Object> setResources = new HashSet();
         long lRecord = 0L;
         Record record = null;
@@ -419,26 +485,42 @@ public class PrimaryDataToDb extends PrimaryDataTransfer {
 
             record = rd.get();
             setResources.clear();
-            rs.moveToInsertRow();
-            putRecord(record, rs, setResources);
-            rs.insertRow();
-            freeResources(setResources);
-            rs.moveToCurrentRow();
+            if (psInsert == null) {
+                try {
+                    rs.moveToInsertRow();
+                    putRecord(record, rs, setResources);
+                    rs.insertRow();
+                    freeResources(setResources);
+                    rs.moveToCurrentRow();
+                } catch (SQLException se) {
+                    // 결과집합 삽입이 막히면 INSERT 문으로 바꿔 같은 레코드부터 다시 넣는다.
+                    psInsert = switchToInsertPath(table, sm, rs, qiTable, lRecord, se);
+                    setResources.clear();
+                    putRecord(record, psInsert, rs.getMetaData(),
+                            (BaseConnection) rs.getStatement().getConnection(), setResources);
+                    psInsert.executeUpdate();
+                    freeResources(setResources);
+                }
+            } else {
+                putRecord(record, psInsert, rs.getMetaData(),
+                        (BaseConnection) rs.getStatement().getConnection(), setResources);
+                psInsert.executeUpdate();
+                freeResources(setResources);
+            }
             lRecord++;
             if (lRecord % 1000L == 0L) {
 
-                System.out.println("    Record " + lRecord + " (" + sw.formatRate(rd.getByteCount() - lBytesStart, sw.stop()) + " kB/s)");
+                System.out.println(CmdI18n.get("cmd.common.recordKbS", lRecord, sw.formatRate(rd.getByteCount() - lBytesStart, sw.stop())));
                 lBytesStart = rd.getByteCount();
                 sw.start();
             }
             incUploaded();
         }
-        System.out.println("    Record " + lRecord + " (" + sw.formatRate(rd.getByteCount() - lBytesStart, sw.stop()) + " kB/s)");
-        System.out.println("    Total: " + StopWatch.formatLong(lRecord) + " records (" + StopWatch.formatLong(rd.getByteCount()) + " bytes in " + sw.formatMs() + " ms)");
-        if (rs instanceof TbRSUpdatable) {
-            TbRSUpdatable resultSet = (TbRSUpdatable) rs;
-            resultSet.close();
-        } else if (!rs.isClosed())
+        System.out.println(CmdI18n.get("cmd.common.recordKbS", lRecord, sw.formatRate(rd.getByteCount() - lBytesStart, sw.stop())));
+        System.out.println(CmdI18n.get("cmd.common.totalRecordsBytesInMs", StopWatch.formatLong(lRecord), StopWatch.formatLong(rd.getByteCount()), sw.formatMs()));
+        if (psInsert != null)
+            psInsert.close();
+        if (!rs.isClosed())
             rs.close();
         if (!stmt.isClosed())
             stmt.close();
@@ -466,7 +548,7 @@ public class PrimaryDataToDb extends PrimaryDataTransfer {
         LOG.info("Start primary data upload of archive {}", this._archive
                 .getFile().getAbsoluteFile());
 
-        System.out.println("\r\nPrimary Data");
+        System.out.println(CmdI18n.get("cmd.common.primaryData"));
         this._progress = progress;
 
         this._lRecordsTotal = 0L;
@@ -491,8 +573,8 @@ public class PrimaryDataToDb extends PrimaryDataTransfer {
         if (!cancelRequested())
             enableConstraints();
         if (cancelRequested())
-            throw new IOException("\r\nUpload of primary data cancelled!");
-        System.out.println("\r\nUpload terminated successfully.");
+            throw new IOException("\r\n" + CmdI18n.get("cmd.cancel.primaryDataUpload"));
+        System.out.println(CmdI18n.get("cmd.dataToDb.uploadTerminatedSuccessfully"));
         this._conn.commit();
 
         LOG.info("Primary data upload finished");
@@ -509,9 +591,3 @@ public class PrimaryDataToDb extends PrimaryDataTransfer {
         return new PrimaryDataToDb(conn, archive, am, bSupportsArrays, bSupportsDistincts, bSupportsUdts);
     }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\SIARD_KR_2.2\lib\siardcmd.jar!\ch\admin\bar\siard2\cmd\PrimaryDataToDb.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

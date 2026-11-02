@@ -1,5 +1,7 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.cmd;
 
+import ch.admin.bar.siard2.cmd.utils.CmdI18n;
 import ch.admin.bar.siard2.api.Archive;
 import ch.admin.bar.siard2.api.MetaColumn;
 import ch.admin.bar.siard2.api.MetaSchema;
@@ -66,38 +68,38 @@ public class SiardFromDb
   }
 
   private void printUsage() {
-    System.out.println("Usage:");
-    System.out.println("java -cp <siardpath>/lib/siardcmd.jar ch.admin.bar.siard2.cmd.SiardFromDb [-h]");
-    System.out.println("  [-o][-v][-l=<login timeout>][-q=<query timeout>][-i=<import xml>] [-x=<external lob folder>] [-m=<mime type>]");
+    System.out.println(CmdI18n.get("cmd.common.usage"));
+    System.out.println(CmdI18n.get("cmd.fromDb.javaCpSiardpathLibSiardcmdJar"));
+    System.out.println(CmdI18n.get("cmd.fromDb.oVLLoginTimeoutQ"));
     
-    System.out.println("  -j=<JDBC URL> -u=<database user> -p=<database password> (-s=<siard file> | -e=<export xml>)");
+    System.out.println(CmdI18n.get("cmd.fromDb.jJdbcUrlUDatabaseUser"));
     
-    System.out.println("where");
-    System.out.println("  <siardpath>          installation path of SiardCmd");
-    System.out.println("  -h (help)            prints this usage information");
-    System.out.println("  -o (overwrite)       overwrite existing siard file");
-    System.out.println("  -v (views as tables) archive views as tables");
-    System.out.println("  <login timeout>      login timeout in seconds (default: " + this._iLoginTimeoutSeconds + "), 0 for unlimited");
+    System.out.println(CmdI18n.get("cmd.common.where"));
+    System.out.println(CmdI18n.get("cmd.fromDb.siardpathInstallationPathOfSiardcmd"));
+    System.out.println(CmdI18n.get("cmd.fromDb.hHelpPrintsThisUsageInformation"));
+    System.out.println(CmdI18n.get("cmd.fromDb.oOverwriteOverwriteExistingSiardFile"));
+    System.out.println(CmdI18n.get("cmd.fromDb.vViewsAsTablesArchiveViews"));
+    System.out.println(CmdI18n.get("cmd.fromDb.loginTimeoutLoginTimeoutInSeconds", this._iLoginTimeoutSeconds));
     
-    System.out.println("  <query timeout>      query timeout in seconds (default: " + this._iQueryTimeoutSeconds + "), 0 for unlimited");
+    System.out.println(CmdI18n.get("cmd.fromDb.queryTimeoutQueryTimeoutInSeconds", this._iQueryTimeoutSeconds));
     
-    System.out.println("  <import xml>         name of meta data XML file to be used as a template");
-    System.out.println("  <lob folder>         folder for storing largest LOB column of database externally");
-    System.out.println("                       (contents will be deleted if they exist!)");
-    System.out.println("  <mime type>          MIME type of data in the largest LOB column of database");
-    System.out.println("  <JDBC URL>           JDBC URL of database to be downloaded");
+    System.out.println(CmdI18n.get("cmd.fromDb.importXmlNameOfMetaData"));
+    System.out.println(CmdI18n.get("cmd.fromDb.lobFolderFolderForStoringLargest"));
+    System.out.println(CmdI18n.get("cmd.fromDb.contentsWillBeDeletedIfThey"));
+    System.out.println(CmdI18n.get("cmd.fromDb.mimeTypeMimeTypeOfData"));
+    System.out.println(CmdI18n.get("cmd.fromDb.jdbcUrlJdbcUrlOfDatabase"));
     System.out.print("                       e.g. ");
     SiardConnection sc = SiardConnection.getSiardConnection();
     String[] asSchemes = sc.getSchemes();
     for (int i = 0; i < asSchemes.length; i++) {
-      if (i > 0) System.out.println("                           "); 
+      if (i > 0) System.out.println(CmdI18n.get("cmd.common.msg")); 
       String sScheme = asSchemes[i];
-      System.out.println("for " + sc.getTitle(sScheme) + ": " + sc.getSampleUrl(sScheme, "dbserver.enterag.ch", "D:\\dbfolder", "testdb"));
+      System.out.println(CmdI18n.get("cmd.common.for", sc.getTitle(sScheme), sc.getSampleUrl(sScheme, "dbserver.enterag.ch", "D:\\dbfolder", "testdb")));
     }
-    System.out.println("  <database user>      database user");
-    System.out.println("  <database password>  database password");
-    System.out.println("  <siard file>         name of .siard file to be written");
-    System.out.println("  <export xml>         name of meta data XML file to be exported");
+    System.out.println(CmdI18n.get("cmd.fromDb.databaseUserDatabaseUser"));
+    System.out.println(CmdI18n.get("cmd.fromDb.databasePasswordDatabasePassword"));
+    System.out.println(CmdI18n.get("cmd.fromDb.siardFileNameOfSiardFile"));
+    System.out.println(CmdI18n.get("cmd.fromDb.exportXmlNameOfMetaData"));
   }
 
   private void getParameters(String[] asArgs) {
@@ -134,14 +136,14 @@ public class SiardFromDb
       if (sExportXml != null) this._fileExportXml = new File(sExportXml);
       
       if (sSiardFile == null && sExportXml == null) {
-        System.out.println("SIARD file and/or export meta data XML must be given!");
+        System.out.println(CmdI18n.get("cmd.fromDb.siardFileAndOrExportMeta"));
         this._iReturn = 8;
       } 
       if (sLoginTimeoutSeconds != null) {
         try {
           this._iLoginTimeoutSeconds = Integer.parseInt(sLoginTimeoutSeconds);
         } catch (NumberFormatException nfe) {
-          System.out.println("Invalid login timeout: " + sLoginTimeoutSeconds + "!");
+          System.out.println(CmdI18n.get("cmd.common.invalidLoginTimeout", sLoginTimeoutSeconds));
           this._iReturn = 8;
         } 
       }
@@ -149,25 +151,25 @@ public class SiardFromDb
         try {
           this._iQueryTimeoutSeconds = Integer.parseInt(sQueryTimeoutSeconds);
         } catch (NumberFormatException nfe) {
-          System.out.println("Invalid query timeout: " + sQueryTimeoutSeconds + "!");
+          System.out.println(CmdI18n.get("cmd.common.invalidQueryTimeout", sQueryTimeoutSeconds));
           this._iReturn = 8;
         } 
       }
       if (sImportXml != null) {
         this._fileImportXml = new File(sImportXml);
         if (!this._fileImportXml.isFile() || !this._fileImportXml.exists()) {
-          System.out.println("File import XML " + this._fileImportXml.getAbsolutePath() + " does not exist!");
+          System.out.println(CmdI18n.get("cmd.fromDb.fileImportXmlDoesNotExist", this._fileImportXml.getAbsolutePath()));
           this._iReturn = 8;
         } 
       } 
       if (sExternalLobFolder != null) {
         this._fileExternalLobFolder = new File(sExternalLobFolder);
         if (!this._fileExternalLobFolder.exists() || !this._fileExternalLobFolder.isDirectory()) {
-          System.out.println("External LOB folder  " + this._fileExternalLobFolder.getAbsolutePath() + " does not exist!");
+          System.out.println(CmdI18n.get("cmd.fromDb.externalLobFolderDoesNotExist", this._fileExternalLobFolder.getAbsolutePath()));
           this._iReturn = 8;
         } else {
           if (this._fileSiard.getParentFile() == null) {
-            System.out.println("To use external LOB folder, specify the parent directory of " + this._fileSiard + "!");
+            System.out.println(CmdI18n.get("cmd.fromDb.toUseExternalLobFolderSpecify", this._fileSiard));
             this._iReturn = 8;
           } 
 
@@ -180,7 +182,7 @@ public class SiardFromDb
           try {
             this._uriExternalLobFolder = new URI("../" + fileRelative + "/");
           } catch (URISyntaxException use) {
-            System.out.println("External LOB folder  " + this._fileExternalLobFolder.getAbsolutePath() + " could not be relativized!");
+            System.out.println(CmdI18n.get("cmd.fromDb.externalLobFolderCouldNotBe", this._fileExternalLobFolder.getAbsolutePath()));
             this._iReturn = 8;
           } 
         } 
@@ -188,16 +190,16 @@ public class SiardFromDb
       
       String sError = SiardConnection.getSiardConnection().loadDriver(this._sJdbcUrl);
       if (sError != null) {
-        System.out.println("JDBC URL " + this._sJdbcUrl + " is not valid!");
+        System.out.println(CmdI18n.get("cmd.fromDb.jdbcUrlIsNotValid", this._sJdbcUrl));
         System.out.println(sError);
         this._iReturn = 8;
       } 
       if (this._sDatabaseUser == null) {
-        System.out.println("Database user must be given!");
+        System.out.println(CmdI18n.get("cmd.common.databaseUserMustBeGiven"));
         this._iReturn = 8;
       } 
       if (this._sDatabasePassword == null) {
-        System.out.println("Database password must be given!");
+        System.out.println(CmdI18n.get("cmd.common.databasePasswordMustBeGiven"));
         this._iReturn = 8;
       } 
     } 
@@ -260,7 +262,7 @@ public class SiardFromDb
         { DriverManager.setLoginTimeout(this._iLoginTimeoutSeconds);
           this._conn = siardConnection.createValidConnection(this._sJdbcUrl, this._sDatabaseUser, this._sDatabasePassword);
           if (this._conn != null && !this._conn.isClosed())
-          { System.out.println("Connected to " + this._conn.getMetaData().getURL());
+          { System.out.println(CmdI18n.get("cmd.common.connectedTo", this._conn.getMetaData().getURL()));
             this._conn.setAutoCommit(false);
             
             this._archive = ArchiveImpl.newInstance();
@@ -297,7 +299,7 @@ public class SiardFromDb
                 } 
                 System.out.println();
                 System.out.println(sMessage); }
-              else { System.out.println("No LOB column found to be externalized!"); }
+              else { System.out.println(CmdI18n.get("cmd.fromDb.noLobColumnFoundToBe")); }
             
             } 
             if (this._fileExportXml != null) {
@@ -321,15 +323,15 @@ public class SiardFromDb
             
             this._conn.rollback();
             this._conn.close(); }
-          else { System.out.println("Connection to " + this._conn.getMetaData().getURL() + " failed!"); }  }
-        else { System.out.println("Connection to " + this._sJdbcUrl + " not supported (" + sError + ")!"); }
+          else { System.out.println(CmdI18n.get("cmd.common.connectionToFailed", this._conn.getMetaData().getURL())); }  }
+        else { System.out.println(CmdI18n.get("cmd.common.connectionToNotSupported", this._sJdbcUrl, sError)); }
          }
       else { String sMessage = "File " + this._fileSiard.getAbsolutePath();
         if (this._fileExportXml != null)
         { sMessage = sMessage + " or " + this._fileExportXml.getAbsolutePath() + " exist already!"; }
         else { sMessage = sMessage + " exists already!"; }
          System.out.println(sMessage);
-        System.out.println("Backup and delete it or use option -o for overwriting it.");
+        System.out.println(CmdI18n.get("cmd.fromDb.backupAndDeleteItOrUse"));
         this._iReturn = 4; }
     
     } 
@@ -363,9 +365,3 @@ public class SiardFromDb
     System.exit(iReturn);
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\SIARD_KR_2.2\lib\siardcmd.jar!\ch\admin\bar\siard2\cmd\SiardFromDb.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

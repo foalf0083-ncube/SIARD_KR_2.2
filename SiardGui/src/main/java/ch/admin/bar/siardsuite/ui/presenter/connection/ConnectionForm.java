@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.connection;
 
 import ch.admin.bar.siardsuite.service.database.model.Dbms;
@@ -91,7 +92,10 @@ public class ConnectionForm extends VBox {
 
         connectionNameField = StringFormField.builder()
                 .title(DisplayableText.of(CONNECTION_NAME))
-                .validator(Validator.IS_NOT_EMPTY_STRING_VALIDATOR)
+                // 필수로 두지 않는다. 토글이 기본으로 켜져 있어서, 아무것도 하지 않은
+                // 사용자가 첫 화면부터 「필수 입력 항목입니다」를 만나고 「다음」이 막혔다.
+                // 이름은 커넥션을 저장할 때만 쓰이므로 비워 두는 것이 잘못이 아니다.
+                // 슬래시 금지는 남긴다 — 저장소 노드 이름 제약이라 취향 문제가 아니다.
                 .validator(Validator.SLASH_NOT_ALLOWED_VALIDATOR)
                 .hint(DisplayableText.of(TOGGLE_SAVE_INFO))
                 .initialValue(connectionName)
@@ -111,14 +115,33 @@ public class ConnectionForm extends VBox {
     public DbmsConnectionData getConnectionData() {
         val connectionData = connectionPropertiesForm.getConnectionData();
 
-        if (connectionNameField.isActivated()) {
-            UserPreferences.INSTANCE.push(RecentDbConnection.from(
-                    connectionData,
-                    connectionNameField.getValue()
-            ));
-        }
+        rememberIfRequested(connectionData);
 
         return connectionData;
+    }
+
+    /**
+     * 토글이 켜져 있으면 이 커넥션을 기억한다.
+     *
+     * <p>이름은 이제 필수가 아니다. 비워 두면 저장소 노드 이름이 빈 문자열이 되어
+     * 상위 노드를 덮어쓰므로, 비었을 때는 접속 정보로 이름을 지어 준다.</p>
+     */
+    private void rememberIfRequested(final DbmsConnectionData connectionData) {
+        if (!connectionNameField.isActivated()) {
+            return;
+        }
+        UserPreferences.INSTANCE.push(RecentDbConnection.from(
+                connectionData,
+                resolveConnectionName(connectionData)
+        ));
+    }
+
+    private String resolveConnectionName(final DbmsConnectionData connectionData) {
+        val entered = connectionNameField.getValue();
+        if (entered != null && !entered.trim().isEmpty()) {
+            return entered.trim();
+        }
+        return connectionData.getDbms().getName();
     }
 
     public Optional<DbmsConnectionData> tryGetValidConnectionData() {
@@ -128,12 +151,7 @@ public class ConnectionForm extends VBox {
 
         val connectionData = connectionPropertiesForm.getConnectionData();
 
-        if (connectionNameField.isActivated()) {
-            UserPreferences.INSTANCE.push(RecentDbConnection.from(
-                    connectionData,
-                    connectionNameField.getValue()
-            ));
-        }
+        rememberIfRequested(connectionData);
 
         return Optional.of(connectionData);
     }

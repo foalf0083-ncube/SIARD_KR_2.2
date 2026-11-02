@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.enterag.utils.logging;
 
 import java.text.MessageFormat;
@@ -62,9 +63,3 @@ public class MessageFormatFormatter
     return s;
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siard-lib\lib\enterutils.jar!\ch\entera\\utils\logging\MessageFormatFormatter.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

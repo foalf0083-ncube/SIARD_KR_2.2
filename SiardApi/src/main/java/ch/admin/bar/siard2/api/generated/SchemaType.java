@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.api.generated;
 
 import javax.xml.bind.annotation.XmlAccessType;
@@ -236,9 +237,3 @@ public class SchemaType
     this.routines = value;
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siardapi.jar!\ch\admin\bar\siard2\api\generated\SchemaType.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

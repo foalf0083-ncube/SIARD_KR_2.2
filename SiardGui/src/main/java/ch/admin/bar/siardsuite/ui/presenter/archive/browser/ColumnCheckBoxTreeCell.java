@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive.browser;
 
 import ch.admin.bar.siardsuite.model.TreeAttributeWrapper;
@@ -13,8 +14,11 @@ import javafx.util.Callback;
 
 /**
  * <p>{@link CheckBoxTreeCell} 을 상속하는 클래스.</p>
- * {@link CheckBoxTreeCell#updateItem(Object, boolean)}를 재정의하여 체크박스가 필요한 목록과 체크박스를 연동한다
- * 파일 다운로드 화면에서 사용되는 체크박스
+ * 파일 다운로드할 컬럼 선택 화면의 목록 칸이다. 표시와 두 번 눌렀을 때의 창 띄우기만 맡는다.
+ *
+ * <p>체크박스를 만들어 항목에 묶고 다시 푸는 일은 상위 클래스가 이미 올바르게 한다. 여기서 체크박스를 따로
+ * 만들면 목록 칸이 다시 쓰일 때 버려진 체크박스가 예전 항목에 묶인 채 남아 다른 테이블의 컬럼까지 켜고 껐다.
+ * 선택이 아래로 퍼지는 일은 모형에 건다({@link ch.admin.bar.siardsuite.model.TreeSelectionBinder}).
  */
 public class ColumnCheckBoxTreeCell extends CheckBoxTreeCell<TreeAttributeWrapper> {
 
@@ -22,14 +26,11 @@ public class ColumnCheckBoxTreeCell extends CheckBoxTreeCell<TreeAttributeWrappe
         super(callback);
     }
 
-    public static ColumnCheckBoxTreeCell initCheckBoxTree(Callback<TreeItem<TreeAttributeWrapper>, ObservableValue<Boolean>> callback) {
+    public static ColumnCheckBoxTreeCell initCheckBoxTree(
+            Callback<TreeItem<TreeAttributeWrapper>, ObservableValue<Boolean>> callback) {
         return new ColumnCheckBoxTreeCell(callback);
     }
 
-    /**
-     * 체크박스를 생성하고
-     * 체크박스에 하위 트리까지 전부 상위 노드의 상태로 업데이트
-     */
     @Override
     public void updateItem(TreeAttributeWrapper item, boolean empty) {
         super.updateItem(item, empty);
@@ -37,40 +38,36 @@ public class ColumnCheckBoxTreeCell extends CheckBoxTreeCell<TreeAttributeWrappe
         if (empty || item == null) {
             setText(null);
             setGraphic(null);
+            setOnMouseClicked(null);
+            return;
+        }
+
+        setText(getDisplayText(item));
+
+        // 테이블을 두 번 누르면 전송 설정 창을 띄운다. 다른 줄에 다시 쓰일 때 남지 않도록 매번 다시 건다.
+        if (item.isTableForSftpConnection()) {
+            setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2 && !isEmpty()) {
+                    showPopupForm(item);
+                }
+            });
         } else {
+            setOnMouseClicked(null);
+        }
 
-            setText(getDisplayText(item));
-
-            // 테이블 선택 시 팝업
-            if (item.isTableForSftpConnection()) {
-                this.setOnMouseClicked(event -> {
-                    if (event.getClickCount() == 2 && !isEmpty()) {
-                        showPopupForm(item); // Trigger popup
-                    }
-                });
-            }
-
-            if (item.shouldHaveCheckBox() && item.isTransferable(item.getDatabaseAttribute())) {
-                CheckBox checkBox = new CheckBox();
-
-                checkBox.selectedProperty().bindBidirectional(item.selectedProperty());
-                checkBox.selectedProperty().addListener((observable, wasSelected, isNowSelected) -> {
-                    System.out.println("observable = " + observable);
-                    // 속성을 아래 노드에도 세팅하기 위해 TreeItem을 호출
-                    propagateSelection(getTreeItem(), isNowSelected);
-                });
-                setGraphic(checkBox);
-            } else {
-                setGraphic(null);
-            }
+        if (!hasCheckBox(item)) {
+            setGraphic(null);
         }
     }
 
+    private boolean hasCheckBox(TreeAttributeWrapper item) {
+        return item.shouldHaveCheckBox() && item.isTransferable(item.getDatabaseAttribute());
+    }
 
     /**
      * SFTP, file Copy 탭 표기
-     * 
-     * @param item 
+     *
+     * @param item
      */
     private void showPopupForm(TreeAttributeWrapper item) {
         TabPane tabPane = new TabPane();
@@ -103,34 +100,5 @@ public class ColumnCheckBoxTreeCell extends CheckBoxTreeCell<TreeAttributeWrappe
     private String getFormattedSize(TreeAttributeWrapper item) {
         String formatted = item.getFormattedSize();
         return formatted == null || formatted.isBlank() ? null : " (" + item.getFormattedSize() + ")";
-    }
-
-    private void propagateSelection(TreeItem<TreeAttributeWrapper> currentTreeItem, boolean isSelected) {
-        if (currentTreeItem == null || currentTreeItem.getChildren().isEmpty()) {
-            return;
-        }
-
-        // 현재 선택된 박스를 업데이트
-        setSelection(currentTreeItem.getValue(), isSelected);
-
-        // 자식 노드 체크박스 상태 업데이트
-        for (TreeItem<TreeAttributeWrapper> child : currentTreeItem.getChildren()) {
-            TreeAttributeWrapper childValue = child.getValue();
-            if (childValue != null) {
-                if (childValue.isTransferable()) {
-                    setSelection(childValue, isSelected);
-                }
-                if (childValue.shouldPropagate()) { // 부모 노드인 경우 하위 노드까지 체크 박스 상태 업데이트
-                    propagateSelection(child, isSelected);
-                }
-            }
-        }
-    }
-
-    private void setSelection(TreeAttributeWrapper currentItem, boolean isSelected) {
-        if (currentItem == null) return;
-        currentItem.setSelected(isSelected);
-
-        System.out.println("currentItem selected = " + currentItem.getDisplayName());
     }
 }

@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter;
 
 import ch.admin.bar.siardsuite.framework.i18n.DisplayableText;
@@ -45,6 +46,7 @@ public class OpenFailedPresenter {
         title.getStyleClass().setAll("x-circle-icon", "h2", "label-icon-left");
         
         // 홈 버튼 설정
+        homeButton.textProperty().bind(DisplayableText.of(I18nKey.of("button.home")).bindable());
         homeButton.setOnAction(event -> {
             try {
                 navigator.navigate(View.START);

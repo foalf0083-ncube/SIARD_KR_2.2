@@ -1,5 +1,7 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.cmd;
 
+import ch.admin.bar.siard2.cmd.utils.CmdI18n;
 import ch.admin.bar.dbexception.DatabaseExceptionHandlerHelper;
 import ch.admin.bar.siard2.api.Record;
 import ch.admin.bar.siard2.api.*;
@@ -7,6 +9,8 @@ import ch.admin.bar.siard2.api.ext.SchemaTableKey;
 import ch.admin.bar.siard2.api.ext.form.FormData;
 import ch.admin.bar.siard2.api.ext.form.FormDataHelper;
 import ch.admin.bar.siard2.api.generated.CategoryType;
+import ch.admin.bar.siard2.api.primary.RecordRetainerImpl;
+import ch.admin.bar.siard2.api.primary.TableImpl;
 import ch.enterag.sqlparser.identifier.QualifiedId;
 import ch.enterag.utils.StopWatch;
 import ch.enterag.utils.background.Progress;
@@ -29,9 +33,7 @@ public class PrimaryDataFromDb extends PrimaryDataTransfer {
     private long recordsDownloaded = -1L;
     private long recordsTotal = -1L;
     private long recordsPercent = -1L;
-    private StopWatch getCellStopWatch = null;
-    private StopWatch getValueStopWatch = null;
-    private StopWatch setValueStopWatch = null;
+    private TransferTimings timings = TransferTimings.DISABLED;
     private final Tika tika = new Tika();
 
     private PrimaryDataFromDb(Connection connection, Archive archive) throws SQLException {
@@ -44,7 +46,7 @@ public class PrimaryDataFromDb extends PrimaryDataTransfer {
 
     public void download(Progress progress) throws IOException, SQLException {
         LOG.info("Start primary data download to archive {}", this._archive.getFile().getAbsoluteFile());
-        System.out.println("\r\nPrimary Data");
+        System.out.println(CmdI18n.get("cmd.common.primaryData"));
         this.progress = progress;
         this.recordsTotal = 0L;
 
@@ -56,9 +58,9 @@ public class PrimaryDataFromDb extends PrimaryDataTransfer {
         processData(progress);
 
         if (this.cancelRequested()) {
-            throw new IOException("\r\nDownload of primary data cancelled!");
+            throw new IOException("\r\n" + CmdI18n.get("cmd.cancel.primaryDataDownload"));
         } else {
-            System.out.println("\r\nDownload terminated successfully.");
+            System.out.println(CmdI18n.get("cmd.dataFromDb.downloadTerminatedSuccessfully"));
             this._conn.rollback();
             LOG.info("Primary data download finished");
         }
@@ -99,7 +101,7 @@ public class PrimaryDataFromDb extends PrimaryDataTransfer {
 
                 // 취소 요청 확인
                 if (progress != null && progress.cancelRequested()) {
-                    throw new RuntimeException("Download cancelled!");
+                    throw new RuntimeException(CmdI18n.get("cmd.cancel.download"));
                 }
             }
         }
@@ -133,6 +135,8 @@ public class PrimaryDataFromDb extends PrimaryDataTransfer {
     }
 
     private void setValue(Value value, Object oValue, MimeTypeHandler mimeTypeHandler) throws IOException, SQLException {
+        boolean copiedOracleNClob = oValue instanceof ObjectValueReader.OracleNClobValue;
+        if (copiedOracleNClob) oValue = ((ObjectValueReader.OracleNClobValue)oValue).clob();
         if (oValue != null) {
             if (oValue instanceof String) {
                 value.setString((String) oValue);
@@ -165,20 +169,8 @@ public class PrimaryDataFromDb extends PrimaryDataTransfer {
             } else if (oValue instanceof Duration) {
                 value.setDuration((Duration) oValue);
             } else if (oValue instanceof Clob clob) {
-                // mimeTypeHandler.add(value, clob);
-                // value.setReader(clob.getCharacterStream());
-                // clob.free();
                 try {
-                    Reader reader;
-                    if (isTiberoDb()) {  // 데이터베이스가 TIBERO 일 때만 스트림 대신 데이터를 직접 읽음
-                        String clobData = clob.getSubString(1, (int) clob.length()); // CLOB 전체 데이터를 읽음
-                        reader = new StringReader(clobData);
-                    } else {   // TIBERO 외에 다른 데이터베이스 clob 처리(기존 방식)
-                       reader = clob.getCharacterStream();
-                    }
-                    mimeTypeHandler.add(value, clob);
-                    value.setReader(reader);
-                    clob.free();
+                    ClobTransfer.copy(value, clob, mimeTypeHandler, copiedOracleNClob);
                 } catch (IOException e) {
                     throw new IOException("Error handling clob data : ", e);
                 } catch (SQLException e) {
@@ -192,20 +184,9 @@ public class PrimaryDataFromDb extends PrimaryDataTransfer {
                 value.setReader(sqlxml.getCharacterStream());
                 sqlxml.free();
             } else if (oValue instanceof Blob blob) {
-                // mimeTypeHandler.add(value, blob);
-                // value.setInputStream(blob.getBinaryStream());
-                // blob.free();
-                try {
-                    InputStream inputStream;
-                    if (isTiberoDb()) {  // Tibero 라면 데이터를 한 번에 읽어 처리
-                        byte[] blobBytes = blob.getBytes(1, (int) blob.length()); // BLOB 전체를 바이트 배열로 읽음
-                        inputStream = new ByteArrayInputStream(blobBytes);        // InputStream 생성
-                    } else {  // Tibero 외의 데이터베이스에서는 기존 스트림 방식 유지
-                        inputStream = blob.getBinaryStream();
-                    }
+                try (BlobResource resource = new BlobResource(blob)) {
                     mimeTypeHandler.add(value, blob);
-                    value.setInputStream(inputStream);
-                    blob.free();
+                    value.setInputStream(blob.getBinaryStream());
                 } catch (IOException e) {
                     throw new IOException("Error handling blob data : ", e);
                 } catch (SQLException e) {
@@ -245,54 +226,51 @@ public class PrimaryDataFromDb extends PrimaryDataTransfer {
 
     }
 
-    private void getRecord(ResultSet rs, Record record, MimeTypeHandler mimeTypeHandler) throws IOException, SQLException {
-        if (rs.getMetaData().getColumnCount() != record.getCells()) {
+    private static final class BlobResource implements AutoCloseable {
+        private final Blob blob;
+        private BlobResource(Blob blob) { this.blob = blob; }
+        @Override public void close() throws SQLException { blob.free(); }
+    }
+
+    private void getRecord(ResultSet rs, Record record, MimeTypeHandler mimeTypeHandler,
+                           ObjectValueReader[] readers, SchemaTableKey tableKey) throws IOException, SQLException {
+        if (readers.length != record.getCells()) {
             throw new IOException("Invalid number of result columns found!");
         } else {
             for (int cellIndex = 0; cellIndex < record.getCells(); ++cellIndex) {
                 Cell cell = this.getCell(record, cellIndex);
-                Object oValue = this.getValue(rs, cell, cellIndex);
-                this.setValue(mimeTypeHandler, cell, oValue);
+                Object oValue = this.getValue(rs, readers[cellIndex]);
+                this.setValue(mimeTypeHandler, cell, oValue, tableKey);
             }
 
         }
     }
 
     private Cell getCell(Record record, int cellIndex) throws IOException {
-        this.getCellStopWatch.start();
-        Cell cell = record.getCell(cellIndex);
-        this.getCellStopWatch.stop();
-        return cell;
+        return record.getCell(cellIndex);
     }
 
-    private Object getValue(ResultSet rs, Cell cell, int cellIndex) throws SQLException, IOException {
-        this.getValueStopWatch.start();
-        Object oValue = (new ObjectValueReader(rs, this.getDataType(cell.getMetaColumn()), cellIndex + 1)).read();
-        if (rs.wasNull()) {
-            oValue = null;
+    private Object getValue(ResultSet rs, ObjectValueReader reader) throws SQLException {
+        long start = timings.now();
+        try {
+            Object oValue = reader.read();
+            return rs.wasNull() ? null : oValue;
+        } finally {
+            timings.getterNanos += timings.elapsed(start);
         }
-
-        this.getValueStopWatch.stop();
-        return oValue;
     }
 
-    private void setValue(MimeTypeHandler mimeTypeHandler, Cell cell, Object oValue) throws IOException, SQLException {
-        this.setValueStopWatch.start();
+    private void setValue(MimeTypeHandler mimeTypeHandler, Cell cell, Object oValue,
+                          SchemaTableKey tableKey) throws IOException, SQLException {
         this.setValue(cell, oValue, mimeTypeHandler);
         mimeTypeHandler.applyMimeType(cell);
-        this.setValueStopWatch.stop();
 
         Set<FormData> formDataSet = _archive.getFormDataSet();
-        Table parentTable = cell.getParentRecord().getParentTable();
-        String schema = parentTable.getParentSchema().getMetaSchema().getName();
-        String table = parentTable.getMetaTable().getName();
-        SchemaTableKey schemaTableKey = SchemaTableKey.of(schema, table);
-
         for (FormData formData : formDataSet) {
             FormDataHelper formDataHelper = FormDataHelper.builder()
                     .formData(formData)
                     .defaultTargetDirectory(_archive.getFile().getParent())
-                    .schemaTableKey(schemaTableKey)
+                    .schemaTableKey(tableKey)
                     .cell(cell)
                     .oValue(oValue)
                     .build();
@@ -320,72 +298,90 @@ public class PrimaryDataFromDb extends PrimaryDataTransfer {
     }
 
     private void getTable(Table table) throws IOException, SQLException {
-        this.getCellStopWatch = StopWatch.getInstance();
-        this.getValueStopWatch = StopWatch.getInstance();
-        this.setValueStopWatch = StopWatch.getInstance();
+        timings = TransferTimings.forTable();
         QualifiedId qiTable = new QualifiedId(null, table.getParentSchema().getMetaSchema().getName(), table.getMetaTable().getName());
-        System.out.println("  Table: " + qiTable.format());
+        System.out.println(CmdI18n.get("cmd.common.table", qiTable.format()));
         long lRecord = 0L;
-        RecordRetainer rr = table.createRecords();
-        ResultSet rs = this.openTable(table, null);
-        Statement stmt = rs.getStatement();
-        StopWatch swCreate = StopWatch.getInstance();
-        StopWatch swGet = StopWatch.getInstance();
-        StopWatch swPut = StopWatch.getInstance();
-        StopWatch sw = StopWatch.getInstance();
-        sw.start();
-        long lBytesStart = rr.getByteCount();
-        MimeTypeHandler mimeTypeHandler = new MimeTypeHandler(this.tika);
+        boolean streamLobs = table instanceof TableImpl && hasFileValues(table);
+        RecordRetainer rr = streamLobs ? ((TableImpl)table).createRecordsStreamingLobs() : table.createRecords();
+        try {
+            long queryStart = timings.now();
+            ResultSet opened = this.openTable(table, null);
+            timings.queryNanos += timings.elapsed(queryStart);
+            try (Statement stmt = opened.getStatement(); ResultSet rs = opened) {
+                int columns = table.getMetaTable().getMetaColumns();
+                if (rs.getMetaData().getColumnCount() != columns)
+                    throw new IOException("Invalid number of result columns found!");
+                ObjectValueReader[] readers = new ObjectValueReader[columns];
+                for (int column = 0; column < columns; column++)
+                    readers[column] = new ObjectValueReader(rs,
+                            getDataType(table.getMetaTable().getMetaColumn(column)), column + 1);
+                SchemaTableKey tableKey = SchemaTableKey.of(qiTable.getSchema(), qiTable.getName());
+                StopWatch sw = StopWatch.getInstance();
+                sw.start();
+                long lBytesStart = rr.getByteCount();
+                MimeTypeHandler mimeTypeHandler = new MimeTypeHandler(this.tika, timings);
 
-        while (rs.next() && !this.cancelRequested()) {
-            Record record = createRecord(swCreate, rr);
-            this.readRecord(swGet, rs, record, mimeTypeHandler);
-            putRecord(swPut, rr, record);
-            lBytesStart = logRecordProgress(lRecord++, sw, rr, lBytesStart);
-            this.incDownloaded();
+                while (true) {
+                    long start = timings.now();
+                    boolean next = rs.next();
+                    timings.fetchNanos += timings.elapsed(start);
+                    if (!next || this.cancelRequested()) break;
+                    start = timings.now();
+                    Record record = rr.create();
+                    timings.createNanos += timings.elapsed(start);
+                    start = timings.now();
+                    this.getRecord(rs, record, mimeTypeHandler, readers, tableKey);
+                    timings.rowNanos += timings.elapsed(start);
+                    start = timings.now();
+                    rr.put(record);
+                    timings.xmlNanos += timings.elapsed(start);
+                    lBytesStart = logRecordProgress(lRecord++, sw, rr, lBytesStart);
+                    this.incDownloaded();
+                }
+                if (this.cancelRequested())
+                    throw new IOException(CmdI18n.get("cmd.cancel.primaryDataDownload"));
+                System.out.println(CmdI18n.get("cmd.common.recordKbS", lRecord, sw.formatRate(rr.getByteCount() - lBytesStart, sw.stop())));
+                System.out.println(CmdI18n.get("cmd.common.totalRecordsBytesInMs", StopWatch.formatLong(lRecord), StopWatch.formatLong(rr.getByteCount()), sw.formatMs()));
+            }
+            long finishStart = timings.now();
+            rr.close();
+            timings.finishNanos += timings.elapsed(finishStart);
+            if (timings.enabled) LOG.info(timings.summary(qiTable.format(), lRecord));
+        } catch (IOException | SQLException | RuntimeException | Error failure) {
+            if (rr instanceof RecordRetainerImpl) {
+                try { ((RecordRetainerImpl)rr).abort(); }
+                catch (IOException cleanup) { failure.addSuppressed(cleanup); }
+            }
+            throw failure;
         }
-
-        System.out.println("    Record " + lRecord + " (" + sw.formatRate(rr.getByteCount() - lBytesStart, sw.stop()) + " kB/s)");
-        System.out.println("    Total: " + StopWatch.formatLong(lRecord) + " records (" + StopWatch.formatLong(rr.getByteCount()) + " bytes in " + sw.formatMs() + " ms)");
-        if (!rs.isClosed()) {
-            rs.close();
-        }
-
-        if (!stmt.isClosed()) {
-            stmt.close();
-        }
-
-        rr.close();
         LOG.debug("All data of table '{}.{}' successfully downloaded", qiTable.getSchema(), qiTable.getName());
+    }
+
+    private boolean hasFileValues(Table table) throws IOException {
+        for (int i = 0; i < table.getMetaTable().getMetaColumns(); i++) {
+            MetaColumn column = table.getMetaTable().getMetaColumn(i);
+            int type = getDataType(column);
+            // Include complex values, whose fields may contain LOBs. Tables of
+            // ordinary scalar values retain the direct-to-ZIP XML writer.
+            if (type == Types.CLOB || type == Types.NCLOB || type == Types.BLOB
+                    || type == Types.SQLXML || type == Types.DATALINK
+                    || type == Types.ARRAY || type == Types.STRUCT) return true;
+            if ((type == Types.CHAR || type == Types.VARCHAR || type == Types.NCHAR
+                    || type == Types.NVARCHAR || type == Types.BINARY || type == Types.VARBINARY)
+                    && column.getMaxLength() > _archive.getMaxInlineSize()) return true;
+        }
+        return false;
     }
 
     private static long logRecordProgress(long lRecord, StopWatch sw, RecordRetainer rr, long lBytesStart) {
         if (lRecord % 1000L == 0L) {
-            System.out.println("    Record " + lRecord + " (" + sw.formatRate(rr.getByteCount() - lBytesStart, sw.stop()) + " kB/s)");
+            System.out.println(CmdI18n.get("cmd.common.recordKbS", lRecord, sw.formatRate(rr.getByteCount() - lBytesStart, sw.stop())));
             lBytesStart = rr.getByteCount();
             sw.start();
         }
 
         return lBytesStart;
-    }
-
-    private static void putRecord(StopWatch swPut, RecordRetainer rr, Record record) throws IOException {
-        swPut.start();
-        rr.put(record);
-        swPut.stop();
-    }
-
-    private void readRecord(StopWatch swGet, ResultSet rs, Record record, MimeTypeHandler mimeTypeHandler) throws IOException, SQLException {
-        swGet.start();
-        this.getRecord(rs, record, mimeTypeHandler);
-        swGet.stop();
-    }
-
-    private static Record createRecord(StopWatch swCreate, RecordRetainer rr) throws IOException {
-        swCreate.start();
-        Record record = rr.create();
-        swCreate.stop();
-        return record;
     }
 
 }

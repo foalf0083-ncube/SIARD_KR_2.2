@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive.browser.dialogues;
 
 import ch.admin.bar.siardsuite.ui.component.CloseDialogButton;
@@ -41,7 +42,7 @@ public class SearchTableDialogPresenter {
             resultConsumer.accept(Optional.empty());
         });
 
-        val closeButton = new CloseDialogButton(dialogCloser);
+        val closeButton = new CloseDialogButton(dialogCloser, "button.close");
         closeButton.setOnAction(event -> {
             dialogCloser.closeDialog();
             resultConsumer.accept(Optional.empty());

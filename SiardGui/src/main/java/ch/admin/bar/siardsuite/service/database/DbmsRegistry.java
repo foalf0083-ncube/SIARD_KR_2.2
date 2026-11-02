@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.service.database;
 
 import ch.admin.bar.siardsuite.service.database.model.Dbms;
@@ -219,7 +220,9 @@ public class DbmsRegistry {
                     .jdbcConnectionStringDecoder(encoded -> {
                         String[] splitEncoded = encoded.split(":");
 
-                        if (splitEncoded.length < 5) {
+                        // 사용자명은 6번째 조각이다. 5개만 검사하면 검사를 통과한 뒤
+                        // 인덱스를 벗어나 ArrayIndexOutOfBoundsException 이 난다.
+                        if (splitEncoded.length < 6) {
                             throw new IllegalArgumentException("Invalid CUBRID JDBC URL format");
                         }
 
@@ -250,7 +253,7 @@ public class DbmsRegistry {
             ServerBasedDbms.builder()
                     .name("TIBERO")
                     .id("tibero")
-                    .driverClassName("com.tmax.tibero.jdbc.TbDriver")
+                    .driverClassName("ch.admin.bar.siard2.jdbc.TiberoDriver")
                     .jdbcConnectionStringEncoder(config -> {
                         String baseUrl = String.format(
                                 "jdbc:tibero:thin:@%s:%s:%s",
@@ -318,7 +321,9 @@ public class DbmsRegistry {
     public static Predicate<String> checkJdbcUrlValidity(final Dbms<?> serverBasedDbms) {
         return nullableValue -> Optional.ofNullable(nullableValue)
                 .filter(value -> {
-                    if (!value.startsWith("jdbc:" + serverBasedDbms.getId())) {
+                    // JDBC 스킴은 대소문자를 가리지 않는다. 명령행 도구는 jdbc:CUBRID: 를 받아들이는데
+                    // 화면만 거부하면 같은 URL 이 한쪽에서만 통하게 된다.
+                    if (!value.toLowerCase().startsWith("jdbc:" + serverBasedDbms.getId().toLowerCase())) {
                         return false;
                     }
 

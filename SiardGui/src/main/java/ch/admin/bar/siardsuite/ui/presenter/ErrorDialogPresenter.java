@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter;
 
 import ch.admin.bar.siardsuite.framework.ServicesFacade;
@@ -17,8 +18,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.text.Text;
 import lombok.val;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.Optional;
 
 public class ErrorDialogPresenter {
@@ -44,6 +43,23 @@ public class ErrorDialogPresenter {
     @FXML
     public Label detailsLabel;
 
+    /**
+     * 예외 연쇄에서 사람이 읽을 사유만 뽑는다. 중복은 걸러낸다.
+     */
+    private static String describeCauses(final Throwable throwable) {
+        final StringBuilder sb = new StringBuilder();
+        final java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        for (Throwable t = throwable; t != null && seen.size() < 5; t = t.getCause()) {
+            final String message = t.getMessage();
+            if (message == null || message.isBlank()) continue;
+            if (seen.add(message.trim())) {
+                if (sb.length() > 0) sb.append(System.lineSeparator());
+                sb.append(message.trim());
+            }
+        }
+        return sb.length() > 0 ? sb.toString() : throwable.getClass().getSimpleName();
+    }
+
     public void init(
             final DisplayableText titleText,
             final DisplayableText messageText,
@@ -58,11 +74,9 @@ public class ErrorDialogPresenter {
         title.textProperty().bind(titleText.bindable());
         message.textProperty().bind(messageText.bindable());
 
-        OptionalHelper.when(optionalThrowable.map(throwable -> {
-                    val stringWriter = new StringWriter();
-                    throwable.printStackTrace(new PrintWriter(stringWriter));
-                    return stringWriter.toString();
-                }))
+        // 상세에는 사유만 싣는다. 스택 트레이스는 내부 구조(패키지·클래스·행번호)를
+        // 그대로 드러내고 사용자가 취할 조치를 알려주지도 못한다. 전문은 로그에 남는다.
+        OptionalHelper.when(optionalThrowable.map(ErrorDialogPresenter::describeCauses))
                 .isPresent(stacktrace -> {
                     detailsLabel.setVisible(true);
                     detailsLabel.setManaged(true);

@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive.browser;
 
 import ch.admin.bar.siard2.api.MetaParameter;
@@ -170,7 +171,7 @@ public class TreeBuilder {
         Set<String> schemaSet = siardArchive.getArchive().getSelectedSchemaTableMap().keySet();
         val schemas = schemaSet.isEmpty() ? this.siardArchive.schemas() : this.siardArchive.schemas().stream().filter(databaseSchema -> schemaSet.contains(databaseSchema.getName())).toList();
 
-           long countTableSize = CustomCheckBoxTreeCell.selectedTotalSize;
+           long countTableSize = SelectedSizeSummary.getSelectedTotalSize();
            String formattedCountTableSize = ByteFormatter.convertToBestFitUnit(countTableSize);
 
         long schemaSize = schemas.stream().mapToLong(s -> s.getSchema().getSchemaSize()).sum();

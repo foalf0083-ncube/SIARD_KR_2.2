@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.export;
 
 import ch.admin.bar.siard2.api.Archive;
@@ -23,6 +24,7 @@ import javafx.scene.control.cell.CheckBoxTreeCell;
 import javafx.scene.layout.HBox;
 import javafx.scene.text.Text;
 import javafx.stage.DirectoryChooser;
+import ch.admin.bar.siardsuite.framework.i18n.DisplayableText;
 import javafx.util.Callback;
 import lombok.val;
 
@@ -76,12 +78,50 @@ public class ExportSelectTablesDialogPresenter {
 
         this.saveButton.setOnAction(this::handleSaveClicked);
         this.saveButton.textProperty().bind(I18n.createStringBinding("export.choose-location.text"));
-        this.tableSelector.setRoot(createTree());
+        val root = createTree();
+        // 체크가 바뀌는 즉시 안내문을 되돌린다. 저장을 다시 누를 때까지 기다리면
+        // 고른 것이 인정되지 않은 것처럼 보인다. 이 사건은 하위 항목에서 올라온다.
+        root.addEventHandler(
+                CheckBoxTreeItem.<String>checkBoxSelectionChangedEvent(),
+                event -> restoreDefaultMessage());
+        this.tableSelector.setRoot(root);
         this.tableSelector.setShowRoot(false);
         tableSelector.setCellFactory((Callback<TreeView<String>, TreeCell<String>>) param -> new CheckBoxTreeCell<>());
     }
 
+    private static final String NO_SELECTION_STYLE = "error-message";
+
+    /** 선택이 비었음을 안내한다. 다시 고르면 {@link #restoreDefaultMessage()} 가 되돌린다. */
+    private void showNoSelectionMessage() {
+        this.text.textProperty().unbind();
+        this.text.setText(DisplayableText.of(
+                ch.admin.bar.siardsuite.framework.i18n.keys.I18nKey.of("export.noSelection.text")).getText());
+        if (!this.text.getStyleClass().contains(NO_SELECTION_STYLE)) {
+            this.text.getStyleClass().add(NO_SELECTION_STYLE);
+        }
+    }
+
+    /**
+     * 원래 안내문과 모양으로 되돌린다.
+     *
+     * <p>되돌리지 않으면 테이블을 다시 골라도 「하나 이상 선택하십시오」가 붉은 채로 남아,
+     * 고른 것이 인정되지 않은 것처럼 보인다.</p>
+     */
+    private void restoreDefaultMessage() {
+        if (this.text.textProperty().isBound()) {
+            return;
+        }
+        this.text.getStyleClass().remove(NO_SELECTION_STYLE);
+        this.text.textProperty().bind(I18n.createStringBinding("export.select-tables.dialog.text"));
+    }
+
     private void handleSaveClicked(ActionEvent actionEvent) {
+        // 아무것도 고르지 않아도 진행되어 빈 폴더만 남던 것을 막는다.
+        if (findCheckedItems().isEmpty()) {
+            showNoSelectionMessage();
+            return;
+        }
+        restoreDefaultMessage();
         final DirectoryChooser directoryChooser = new DirectoryChooser();
         directoryChooser.setTitle(I18n.get("export.choose-location.text"));
         File file = directoryChooser.showDialog(title.getScene().getWindow());

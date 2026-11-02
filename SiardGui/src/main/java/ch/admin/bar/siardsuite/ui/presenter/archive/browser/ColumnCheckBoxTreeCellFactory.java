@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive.browser;
 
 import ch.admin.bar.siardsuite.model.TreeAttributeWrapper;
@@ -14,7 +15,7 @@ public class ColumnCheckBoxTreeCellFactory implements Callback<TreeView<TreeAttr
     @Override
     public TreeCell<TreeAttributeWrapper> call(TreeView<TreeAttributeWrapper> treeView) {
         return ColumnCheckBoxTreeCell.initCheckBoxTree(param -> {
-                    if (param != null && param.getValue().shouldHaveCheckBox()) {
+                    if (param != null && param.getValue() != null && param.getValue().shouldHaveCheckBox()) {
                         return param.getValue().selectedProperty();
                     } else {
                         return null;

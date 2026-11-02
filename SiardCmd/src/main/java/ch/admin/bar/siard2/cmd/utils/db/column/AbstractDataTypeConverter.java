@@ -1,9 +1,8 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.cmd.utils.db.column;
 
 import ch.admin.bar.siard2.api.MetaColumn;
 import ch.admin.bar.siard2.cmd.MetaDataBase;
-import sqlj.runtime.profile.util.CustomizerHarnessBeanInfo;
-
 import javax.activation.UnsupportedDataTypeException;
 import java.io.IOException;
 
@@ -20,8 +19,8 @@ public abstract class AbstractDataTypeConverter implements DataTypeConverter {
     protected AbstractDataTypeConverter(String databaseProductName, MetaColumn metaColumn) throws IOException {
         this.databaseProductName = databaseProductName;
         this.dataBase = MetaDataBase.DataBase.findByName(databaseProductName);
-        this.dataType = metaColumn.getType().toUpperCase();
-        this.originalDataType = metaColumn.getTypeOriginal().toUpperCase();
+        this.dataType = normalizeType(metaColumn.getType(), null);
+        this.originalDataType = normalizeType(metaColumn.getTypeOriginal(), this.dataType);
     }
 
     protected boolean isSupported(String dataType) {return false;}; // cubrid, tibero만 재정의
@@ -31,7 +30,7 @@ public abstract class AbstractDataTypeConverter implements DataTypeConverter {
     protected abstract boolean requiresSpecifier(String dataType);
 
     protected String appendSpecifier(String dataType, String specifier) {
-        if (isLob(dataType)) return dataType;
+        if (isLob(dataType) || dataType.contains("(")) return dataType;
         return dataType + getDefaultTypeSpecifierIfNecessary(dataType, specifier);
     }
 
@@ -44,6 +43,13 @@ public abstract class AbstractDataTypeConverter implements DataTypeConverter {
 
     protected boolean isLob(String type) {
         return type.contains("LOB");
+    }
+
+    private String normalizeType(String type, String fallback) {
+        if (type == null || type.isBlank()) {
+            return fallback;
+        }
+        return type.toUpperCase();
     }
 
     private boolean isOpenSourceDb() {

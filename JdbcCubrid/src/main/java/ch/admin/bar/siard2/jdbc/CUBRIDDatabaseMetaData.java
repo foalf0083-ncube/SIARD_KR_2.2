@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 /*======================================================================
 CubridDatabaseMetaData implements a wrapped Cubrid DatabaseMetaData.
 Version     : $Id: $
@@ -94,7 +95,7 @@ public class CUBRIDDatabaseMetaData
 			throw new SQLException("Cubrid does not support catalogs, argument must be NULL.");
 		}
 		
-		return super.getIndexInfo(catalog, schema, table, unique, approximate);
+		return super.getIndexInfo(catalog, schema, qualifyForVendor(schema, table), unique, approximate);
 	} /* getIndexInfo */
 
 	/* ------------------------------------------------------------------------ */
@@ -131,7 +132,7 @@ public class CUBRIDDatabaseMetaData
 	{
 		if (catalog != null) { throw new SQLException("Cubrid does not support catalogs, argument must be NULL."); }
 		
-		return super.getPrimaryKeys(catalog, schema, table);
+		return super.getPrimaryKeys(catalog, schema, qualifyForVendor(schema, table));
 	} /* getPrimaryKeys */
 
 	/* ------------------------------------------------------------------------ */
@@ -198,7 +199,7 @@ public class CUBRIDDatabaseMetaData
   {
     if (catalog != null) { throw new SQLException("Cubrid does not support catalogs, argument must be NULL."); }
  
-	return super.getImportedKeys(catalog, schema, table);
+	return super.getImportedKeys(catalog, schema, qualifyForVendor(schema, table));
   } /* getImportedKeys */
 
 	/* ------------------------------------------------------------------------ */
@@ -212,7 +213,7 @@ public class CUBRIDDatabaseMetaData
 			throw new SQLException("Cubrid does not support catalogs, argument must be NULL.");
 		}
 		
-		return super.getExportedKeys(catalog, schema, table);
+		return super.getExportedKeys(catalog, schema, qualifyForVendor(schema, table));
 	} /* getExportedKeys */
 
 	/* ------------------------------------------------------------------------ */
@@ -227,7 +228,7 @@ public class CUBRIDDatabaseMetaData
 		
 		StringBuilder sb = new StringBuilder();
 		sb.append("SELECT  NULL AS FUNCTION_CAT,\n" + 
-				"'" +	getConnection().getSchema() + "' AS FUNCTION_SCHEM, \n" + 
+				"'" +	currentSchemaSafe() + "' AS FUNCTION_SCHEM, \n" + 
 				"		a.SP_NAME AS FUNCTION_NAME, \n" + 
 				"		arg_name AS COLUMN_NAME, \n" + 
 				"		CASE \n" + 
@@ -292,7 +293,7 @@ public class CUBRIDDatabaseMetaData
 
 		StringBuilder sb = new StringBuilder();
 		sb.append("SELECT  NULL AS PROCEDURE_CAT,\n" + 
-				"'" +	getConnection().getSchema() + "' AS PROCEDURE_SCHEM, \n" + 
+				"'" +	currentSchemaSafe() + "' AS PROCEDURE_SCHEM, \n" + 
 				"		a.SP_NAME AS PROCEDURE_NAME, \n" + 
 				"		arg_name AS COLUMN_NAME, \n" + 
 				"		CASE \n" + 
@@ -423,7 +424,7 @@ public class CUBRIDDatabaseMetaData
 		    
 	    String sSql = "SELECT\r\n" +
 	    		"NULL as FUNCTION_CAT,\r\n" +
-	    		"'" + getConnection().getSchema() + "' as FUNCTION_SCHEM,\r\n" +
+	    		"'" + currentSchemaSafe() + "' as FUNCTION_SCHEM,\r\n" +
 	    		"SP_NAME AS FUNCTION_NAME,\r\n" +
 	    		"'RETURN ' + return_type + ' AS Language ' + lang + ' NAME ' + '''' + target + '''' as REMARKS,\r\n" +
 	    		"0 as FUNCTION_TYPE,\r\n" +
@@ -467,7 +468,7 @@ public class CUBRIDDatabaseMetaData
 
 	    String sSql = "SELECT\r\n" +
 	    		"NULL as PROCEDURE_CAT,\r\n" +
-	    		"'" + getConnection().getSchema() + "' as PROCEDURE_SCHEM,\r\n" +
+	    		"'" + currentSchemaSafe() + "' as PROCEDURE_SCHEM,\r\n" +
 	    		"SP_NAME AS PROCEDURE_NAME,\r\n" +
 	    		"NULL as RESERVED1,\r\n" +
 	    		"NULL as RESERVED2,\r\n" +
@@ -490,7 +491,8 @@ public class CUBRIDDatabaseMetaData
 	 */
 	@Override
 	public ResultSet getSchemas() throws SQLException {
-		String sSql = "SELECT " + getConnection().getSchema() + "' AS TABLE_SCHEM, NULL AS TABLE_CATALOG FROM DB_ROOT";
+		String sSql = "SELECT DISTINCT LOWER(owner_name) AS TABLE_SCHEM, NULL AS TABLE_CATALOG\n"
+				+ "FROM db_class WHERE is_system_class = 'NO'";
 		Statement stmt = this.getConnection().createStatement();
 		return stmt.unwrap(Statement.class).executeQuery(sSql);
 	} /* getSchemas */
@@ -532,6 +534,13 @@ public class CUBRIDDatabaseMetaData
 		return super.getSuperTypes(schemaPattern, catalog, typeNamePattern);
 	} /* getSuperTypes */
 
+	private String qualifyForVendor(String schema, String table) {
+		if (table == null || table.isEmpty() || "%".equals(table)) return table;
+		if (table.indexOf('.') >= 0) return table;           // 이미 한정돼 있다
+		if (schema == null || schema.isEmpty() || "%".equals(schema)) return table;
+		return schema.toLowerCase() + "." + table;
+	}
+
 	/* ------------------------------------------------------------------------ */
 	/**
 	 * {@inheritDoc}
@@ -543,7 +552,7 @@ public class CUBRIDDatabaseMetaData
 		if (catalog != null)
 			throw new SQLException("Cubrid does not support catalogs, argument must be NULL.");
 		
-		return super.getColumns(catalog, schemaPattern, tableNamePattern, columnNamePattern);
+		return super.getColumns(catalog, schemaPattern, qualifyForVendor(schemaPattern, tableNamePattern), columnNamePattern);
 	} /* getColumns */
 
 	/* ------------------------------------------------------------------------ */
@@ -556,8 +565,63 @@ public class CUBRIDDatabaseMetaData
 			throw new SQLException("Cubrid does not support catalogs, argument must be NULL.");
 		}
 
-		return super.getTables(catalog, schemaPattern, tableNamePattern, types);
+		StringBuilder sb = new StringBuilder();
+		sb.append("SELECT NULL AS TABLE_CAT,\n");
+		sb.append("       LOWER(owner_name) AS TABLE_SCHEM,\n");
+		sb.append("       class_name AS TABLE_NAME,\n");
+		sb.append("       CASE class_type WHEN 'CLASS' THEN 'TABLE' ELSE 'VIEW' END AS TABLE_TYPE,\n");
+		sb.append("       comment AS REMARKS,\n");
+		sb.append("       NULL AS TYPE_CAT, NULL AS TYPE_SCHEM, NULL AS TYPE_NAME,\n");
+		sb.append("       NULL AS SELF_REFERENCING_COL_NAME, NULL AS REF_GENERATION\n");
+		sb.append("FROM db_class\n");
+		sb.append("WHERE is_system_class = 'NO'\n");
+
+		if ((schemaPattern != null) && !schemaPattern.equals("%")) {
+			sb.append("  AND LOWER(owner_name) LIKE ")
+			  .append(SqlLiterals.formatStringLiteral(schemaPattern.toLowerCase())).append("\n");
+		}
+
+		if ((tableNamePattern != null) && !tableNamePattern.equals("%")) {
+			String bare = tableNamePattern;
+			int dot = bare.lastIndexOf('.');
+			if (dot >= 0) bare = bare.substring(dot + 1);
+			sb.append("  AND class_name LIKE ")
+			  .append(SqlLiterals.formatStringLiteral(bare)).append("\n");
+		}
+
+		if (types != null) {
+			StringBuilder sbTypes = new StringBuilder();
+			for (String t : types) {
+				if (t == null) continue;
+				String mapped = t.equalsIgnoreCase("VIEW") ? "VCLASS"
+						: t.equalsIgnoreCase("TABLE") ? "CLASS" : null;
+				if (mapped == null) continue;
+				if (sbTypes.length() > 0) sbTypes.append(", ");
+				sbTypes.append('\'').append(mapped).append('\'');
+			}
+			if (sbTypes.length() > 0) {
+				sb.append("  AND class_type IN (").append(sbTypes).append(")\n");
+			} else {
+				sb.append("  AND 1 = 0\n");   // 인식 가능한 유형이 없으면 빈 결과
+			}
+		}
+		sb.append("ORDER BY TABLE_TYPE, TABLE_NAME");
+
+		Statement stmt = this.getConnection().createStatement();
+		return stmt.unwrap(Statement.class).executeQuery(sb.toString());
 	} /* getTables */
+
+	private String currentSchemaSafe() {
+		try {
+			return getConnection().getSchema();
+		} catch (Exception e) {
+			try {
+				return getUserName();
+			} catch (Exception e2) {
+				return "PUBLIC";
+			}
+		}
+	}
 
 	/* ------------------------------------------------------------------------ */
 	/**
@@ -572,10 +636,21 @@ public class CUBRIDDatabaseMetaData
 		ResultSet rsUdts;
 
         String sbCondition = "T.TYPE_NAME LIKE " + SqlLiterals.formatStringLiteral(typeNamePattern);
-		    
+
+	    String sTypeSchema;
+	    try {
+	        sTypeSchema = currentSchemaSafe();
+	    } catch (Exception e) {
+	        try {
+	            sTypeSchema = getUserName();
+	        } catch (Exception e2) {
+	            sTypeSchema = "PUBLIC";
+	        }
+	    }
+
 	    String sSql = "SELECT\r\n" +
 	    		"NULL as TYPE_CAT,\r\n" +
-	    		"'" + getConnection().getSchema() + "' as TYPE_SCHEM,\r\n" +
+	    		"'" + sTypeSchema + "' as TYPE_SCHEM,\r\n" +
 	    		"T.TYPE_NAME AS TYPE_NAME,\r\n" +
 				"null AS TYPE_NAME,\r\n" +
 	    		"NULL as CLASS_NAME,\r\n" +

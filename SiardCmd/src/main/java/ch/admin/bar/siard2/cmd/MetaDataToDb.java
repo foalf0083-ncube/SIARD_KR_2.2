@@ -1,5 +1,7 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.cmd;
 
+import ch.admin.bar.siard2.cmd.utils.CmdI18n;
 import ch.admin.bar.siard2.api.MetaAttribute;
 import ch.admin.bar.siard2.api.MetaColumn;
 import ch.admin.bar.siard2.api.MetaData;
@@ -10,7 +12,6 @@ import ch.admin.bar.siard2.api.MetaUniqueKey;
 import ch.admin.bar.siard2.api.generated.CategoryType;
 import ch.admin.bar.siard2.cmd.utils.db.column.DataTypeConverter;
 import ch.admin.bar.siard2.cmd.utils.db.column.DataTypeConverterFactory;
-import ch.admin.bar.siard2.cmd.utils.db.column.TiberoDataTypeConverter;
 import ch.enterag.sqlparser.SqlLiterals;
 import ch.enterag.sqlparser.identifier.QualifiedId;
 import ch.enterag.utils.background.Progress;
@@ -334,13 +335,13 @@ public class MetaDataToDb extends MetaDataBase {
           String databaseProductName = null;
         try {
             Connection connection = this._dmd.getConnection();
-            Statement stmt = connection.createStatement();
+            Statement stmt = createStatementForSqlExecution(connection);
             databaseProductName = connection.getMetaData().getDatabaseProductName();
             stmt.setQueryTimeout(this._iQueryTimeoutSeconds);
             stmt.executeUpdate(sqlStatement);
             stmt.close();
         } catch (Exception ex) {
-            System.out.println("Failed SQL statement:\n" + sqlStatement);
+            System.out.println(CmdI18n.get("cmd.metaToDb.failedSqlStatement", sqlStatement));
             if (ex instanceof SQLException) {
                 SQLException sqlException = (SQLException) ex;
                 doHandleSqlException(databaseProductName, "createTable", sqlException);
@@ -368,9 +369,7 @@ public class MetaDataToDb extends MetaDataBase {
             String sMappedColumnName = rsColumns.getString("COLUMN_NAME");
             int iOrdinalPosition = rsColumns.getInt("ORDINAL_POSITION");
 
-            if (!isTiberoDb()) {
-                iOrdinalPosition -= 1;
-            }
+            iOrdinalPosition -= 1;
 
             List<String> listColumn = llColumnNames.get(iOrdinalPosition);
             StringBuilder sbColumnName = new StringBuilder();
@@ -395,7 +394,7 @@ public class MetaDataToDb extends MetaDataBase {
 
             MetaTable mt = ms.getMetaTable(iTable);
             QualifiedId qiTable = new QualifiedId(null, mt.getParentMetaSchema().getName(), mt.getName());
-            System.out.println("  Table: " + qiTable.format());
+            System.out.println(CmdI18n.get("cmd.common.table", qiTable.format()));
             createTable(mt, sm);
             incTablesCreated();
         }
@@ -403,6 +402,10 @@ public class MetaDataToDb extends MetaDataBase {
 
 
     private boolean existsTable(String sMangledSchema, String sMangledTable) throws SQLException {
+        if (isMsSqlDb()) {
+            return existsMsSqlTable(sMangledSchema, sMangledTable);
+        }
+
         boolean bExists = false;
         ResultSet rs = this._dmd.getTables(null,
                 getPatternedName(sMangledSchema),
@@ -415,19 +418,83 @@ public class MetaDataToDb extends MetaDataBase {
         return bExists;
     }
 
+    private boolean existsMsSqlTable(String schemaName, String tableName) throws SQLException {
+        Connection connection = this._dmd.getConnection();
+        Connection nativeConnection = unwrapConnection(connection);
+        String sql = "SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id " +
+                "WHERE s.name = ? AND t.name = ?";
+        try (PreparedStatement ps = nativeConnection.prepareStatement(sql)) {
+            ps.setString(1, schemaName);
+            ps.setString(2, tableName);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
 
     private void dropTables(MetaSchema ms, SchemaMapping sm) throws SQLException {
+        if (isMsSqlDb()) {
+            dropMsSqlForeignKeys(sm);
+        }
+
         for (int iTable = 0; iTable < ms.getMetaTables(); iTable++) {
 
             String sTableName = ms.getMetaTable(iTable).getName();
             TableMapping tm = sm.getTableMapping(sTableName);
-            Statement stmt = this._dmd.getConnection().createStatement();
+            if (existsTable(sm.getMappedSchemaName(), tm.getMappedTableName())) {
+                QualifiedId qiTable = new QualifiedId(null, sm.getMappedSchemaName(), tm.getMappedTableName());
+                String sSql = "DROP TABLE " + qiTable.format();
+                LOG.trace("SQL statement: '{}'", sSql);
+                Statement stmt = createStatementForSqlExecution(this._dmd.getConnection());
+                stmt.setQueryTimeout(this._iQueryTimeoutSeconds);
+                stmt.executeUpdate(sSql);
+                stmt.close();
+                LOG.debug("Table '{}.{}' successfully dropped", sm.getMappedSchemaName(), tm.getMappedTableName());
+            }
+        }
+    }
+
+    private void dropMsSqlForeignKeys(SchemaMapping sm) throws SQLException {
+        Connection nativeConnection = unwrapConnection(this._dmd.getConnection());
+        String sql = "SELECT sch.name AS schema_name, tab.name AS table_name, fk.name AS fk_name " +
+                "FROM sys.foreign_keys fk " +
+                "JOIN sys.tables tab ON fk.parent_object_id = tab.object_id " +
+                "JOIN sys.schemas sch ON tab.schema_id = sch.schema_id " +
+                "WHERE sch.name = ?";
+        java.util.List<String[]> foreignKeys = new java.util.ArrayList<>();
+        try (PreparedStatement ps = nativeConnection.prepareStatement(sql)) {
+            ps.setString(1, sm.getMappedSchemaName());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    foreignKeys.add(new String[]{
+                            rs.getString("schema_name"),
+                            rs.getString("table_name"),
+                            rs.getString("fk_name")
+                    });
+                }
+            }
+        }
+
+        try (Statement stmt = nativeConnection.createStatement()) {
             stmt.setQueryTimeout(this._iQueryTimeoutSeconds);
+            for (String[] foreignKey : foreignKeys) {
+                String sSql = "ALTER TABLE " + SqlLiterals.formatId(foreignKey[0]) + "." +
+                        SqlLiterals.formatId(foreignKey[1]) + " DROP CONSTRAINT " +
+                        SqlLiterals.formatId(foreignKey[2]);
+                LOG.trace("SQL statement: '{}'", sSql);
+                stmt.executeUpdate(sSql);
+                LOG.debug("Foreign key '{}.{}.{}' successfully dropped", foreignKey[0], foreignKey[1], foreignKey[2]);
+            }
         }
     }
 
 
     private boolean existsSchema(String sMangledSchema) throws SQLException {
+        if (isMsSqlDb()) {
+            return existsMsSqlSchema(sMangledSchema);
+        }
+
         boolean bExists = false;
         ResultSet rs = this._dmd.getSchemas(null,
                 getPatternedName(sMangledSchema)
@@ -436,6 +503,45 @@ public class MetaDataToDb extends MetaDataBase {
             bExists = true;
         rs.close();
         return bExists;
+    }
+
+    private boolean isMsSqlDb() {
+        try {
+            return DataBase.MSSQL.equals(DataBase.findByName(super.getDatabaseProductName()));
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    private boolean existsMsSqlSchema(String schemaName) throws SQLException {
+        Connection connection = this._dmd.getConnection();
+        Connection nativeConnection = unwrapConnection(connection);
+
+        String sql = "SELECT 1 FROM sys.schemas WHERE name = ?";
+        try (PreparedStatement ps = nativeConnection.prepareStatement(sql)) {
+            ps.setString(1, schemaName);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private Statement createStatementForSqlExecution(Connection connection) throws SQLException {
+        if (isMsSqlDb()) {
+            Connection nativeConnection = unwrapConnection(connection);
+            if (nativeConnection != null) {
+                return nativeConnection.createStatement();
+            }
+        }
+        return connection.createStatement();
+    }
+
+    private Connection unwrapConnection(Connection connection) throws SQLException {
+        Connection nativeConnection = connection;
+        if (connection.isWrapperFor(Connection.class)) {
+            nativeConnection = connection.unwrap(Connection.class);
+        }
+        return nativeConnection == null ? connection : nativeConnection;
     }
 
 
@@ -475,7 +581,7 @@ public class MetaDataToDb extends MetaDataBase {
         LOG.info("Start meta data upload of archive {}", this._md
                 .getArchive().getFile().getAbsoluteFile());
 
-        System.out.println("Meta Data");
+        System.out.println(CmdI18n.get("cmd.common.metaData"));
         this._progress = progress;
 
         this._iTables = 0;
@@ -539,7 +645,7 @@ public class MetaDataToDb extends MetaDataBase {
             }
         }
         if (cancelRequested())
-            throw new IOException("Upload of meta data cancelled!");
+            throw new IOException(CmdI18n.get("cmd.cancel.metaDataUpload"));
         this._dmd.getConnection().commit();
 
         LOG.info("Meta data upload finished");

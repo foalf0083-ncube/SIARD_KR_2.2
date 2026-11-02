@@ -1,3 +1,4 @@
+# SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 font:
   catalog:
     # Noto Serif supports Latin, Latin-1 Supplement, Latin Extended-A, Greek, Cyrillic, Vietnamese & an assortment of symbols
@@ -19,7 +20,15 @@ font:
       bold: mplus1p-regular-fallback.ttf
       italic: mplus1p-regular-fallback.ttf
       bold_italic: mplus1p-regular-fallback.ttf
+    # Noto Sans KR — 한글 매뉴얼용. 본문 글꼴(Frutiger Neue)에 한글 글리프가 없어
+    # 폴백으로 두지 않으면 한국어 문서가 빈 칸으로 조판된다. SIL OFL 1.1.
+    Noto Sans KR:
+      normal: fonts/NotoSansKR-Regular.ttf
+      bold: fonts/NotoSansKR-Bold.ttf
+      italic: fonts/NotoSansKR-Regular.ttf
+      bold_italic: fonts/NotoSansKR-Bold.ttf
   fallbacks:
+    - Noto Sans KR
     - M+ 1p Fallback
 page:
   background_color: ffffff

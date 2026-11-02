@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 plugins {
     id 'java'
 }
@@ -7,22 +8,34 @@ version = '1.0-SNAPSHOT'
 java.sourceCompatibility = JavaVersion.VERSION_17
 java.targetCompatibility = JavaVersion.VERSION_17
 
+sourceSets {
+    main {
+        resources {
+            srcDir 'src/main/java'
+            exclude '**/*.java'
+            exclude '**/MANIFEST.MF'
+        }
+    }
+}
+
 repositories {
     mavenCentral()
 }
 
 dependencies {
-//    testImplementation platform('org.junit:junit-bom:5.10.0')
-//    testImplementation 'org.junit.jupiter:junit-jupiter'
+    implementation project(':Zip64')
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
 
     compileOnly 'org.projectlombok:lombok:1.18.34'
     annotationProcessor 'org.projectlombok:lombok:1.18.34'
 
-    implementation fileTree(include: ['*.jar'], dir: "$rootDir/lib")
-
+    implementation fileTree(include: ['*.jar'], exclude: ['jfxrt.jar', 'zip64.jar'], dir: "$rootDir/lib")
     implementation project(':SiardApi')
     implementation project(':JdbcBase')
     implementation project(':JdbcMysql')
+    implementation project(':JdbcCubrid')
+    implementation project(':JdbcTibero')
     implementation project(':DbException')
 
 }

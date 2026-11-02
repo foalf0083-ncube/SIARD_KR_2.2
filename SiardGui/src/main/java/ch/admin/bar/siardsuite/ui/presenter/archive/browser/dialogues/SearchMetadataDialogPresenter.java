@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siardsuite.ui.presenter.archive.browser.dialogues;
 
 import ch.admin.bar.siardsuite.framework.ServicesFacade;
@@ -74,7 +75,7 @@ public class SearchMetadataDialogPresenter {
         text.setText((DisplayableText.of(TEXT).getText()));
 
         closeButton.setOnAction(event -> dialogCloser.closeDialog());
-        buttonBox.getChildren().add(new CloseDialogButton(dialogCloser));
+        buttonBox.getChildren().add(new CloseDialogButton(dialogCloser, "button.close"));
         buttonBox.getChildren().add(new SearchButton(event -> search(new MetaSearchTerm(searchField.getText()))));
     }
 

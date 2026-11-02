@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.enterag.utils;
 
 import java.io.ByteArrayInputStream;
@@ -377,9 +378,3 @@ public abstract class SU
     return sText;
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siard-lib\lib\enterutils.jar!\ch\entera\\utils\SU.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */

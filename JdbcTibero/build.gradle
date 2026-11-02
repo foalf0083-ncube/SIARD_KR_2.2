@@ -1,0 +1,29 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
+plugins {
+    id 'java'
+}
+
+group = 'ch.admin.bar'
+version = '1.0-SNAPSHOT'
+
+java.sourceCompatibility = JavaVersion.VERSION_17
+java.targetCompatibility = JavaVersion.VERSION_17
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    // 벤더 드라이버(tibero*-jdbc.jar)는 실행 시에만 필요하다. 래퍼 소스는 벤더 클래스를 import 하지 않는다.
+    // lib 폴더는 sqlparser(PreType)와 실행 시 드라이버를 위해 클래스패스에 둔다.
+    implementation fileTree(include: ['*.jar'], exclude: ['jfxrt.jar', 'zip64.jar'], dir: "$rootDir/lib")
+    implementation project(':EnterUtils')
+    implementation project(':JdbcBase')
+}
+
+test {
+    useJUnitPlatform()
+}

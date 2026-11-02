@@ -1,0 +1,33 @@
+# SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
+# 한국어 매뉴얼 전용 PDF 테마.
+#
+# 기본 테마의 본문 글꼴(Noto Serif)에는 한글 글리프가 없어 한국어 문서가 빈 네모로
+# 조판된다. 한글을 담은 글꼴로 바꾸고, 코드 블록처럼 별도 글꼴을 쓰는 자리는 폴백으로 받는다.
+#
+# 이 테마는 한국어 문서에서만 쓴다(ko/user-manual.adoc 의 pdf-theme 속성).
+# 다른 언어의 조판은 그대로 둔다.
+extends: default
+
+font:
+  catalog:
+    merge: true
+    Noto Sans KR:
+      normal: NotoSansKR-Regular.ttf
+      bold: NotoSansKR-Bold.ttf
+      italic: NotoSansKR-Regular.ttf
+      bold_italic: NotoSansKR-Bold.ttf
+  fallbacks:
+    - Noto Sans KR
+
+base:
+  font-family: Noto Sans KR
+
+heading:
+  font-family: Noto Sans KR
+
+# 코드·리터럴은 등폭 글꼴을 유지하되, 한글은 위 폴백으로 그려진다.
+codespan:
+  font-family: M+ 1mn
+
+code:
+  font-family: M+ 1mn

@@ -1,3 +1,4 @@
+// SIARD KR modifications: foalf0083-ncube (2026). See root LICENSE.txt and NOTICE.md.
 package ch.admin.bar.siard2.api.meta;
 
 import ch.admin.bar.siard2.api.MetaParameter;
@@ -183,9 +184,7 @@ public class MetaParameterImpl
     String sType = getType();
     if (sType != null) {
       
-      BaseSqlFactory baseSqlFactory = new BaseSqlFactory();
-      PredefinedType prt = baseSqlFactory.newPredefinedType();
-      prt.parse(sType);
+      PredefinedType prt = PredefinedTypes.parsed(sType);
       PreType pt = prt.getType();
       iDataType = pt.getSqlType();
     }
@@ -344,9 +343,3 @@ public class MetaParameterImpl
     return getName();
   }
 }
-
-
-/* Location:              C:\Users\lenovo\IdeaProjects\siardapi.jar!\ch\admin\bar\siard2\api\meta\MetaParameterImpl.class
- * Java compiler version: 8 (52.0)
- * JD-Core Version:       1.1.3
- */
